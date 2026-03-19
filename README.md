@@ -1,4 +1,4 @@
-# Cover Regulatory Engine
+# Regulatory Engine
 
 > **For a given residential parcel in Southern California, what can I confidently build — and why?**
 
