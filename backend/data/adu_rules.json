@@ -1,0 +1,119 @@
+{
+  "_meta": {
+    "source": "CA HCD ADU Handbook + AB 2221, SB 897, AB 976, SB 1211, SB 543, AB 462, AB 1154, SB 9 (2025 session)",
+    "effective_date": "2026-01-01",
+    "last_updated": "2026-03-17",
+    "principle": "State ADU law preempts local LA ordinances. Where state law is more permissive, STATE LAW WINS.",
+    "2026_update_note": "Four new ADU bills signed by Governor Newsom (Oct 2025), effective Jan 1, 2026. SB 543 is the most significant — allows multi-ADU combinations on single-family lots."
+  },
+  "state_minimums": {
+    "max_size_guarantee_sqft": 800,
+    "max_size_guarantee_note": "800 sqft of interior livable space allowed regardless of FAR or lot size (SB 543 clarifies 'interior livable space' as measurement standard)",
+    "max_size_guarantee_source": "AB 2221; Gov. Code §66314; SB 543 (2026 amendment)",
+
+    "side_setback_ft": 4,
+    "rear_setback_ft": 4,
+    "setback_note": "4 ft maximum — local cannot be stricter",
+    "setback_source": "SB 897; Gov. Code §66314(c)",
+
+    "front_setback_note": "Cannot block 800 sqft ADU if no other location available",
+    "front_setback_source": "AB 2221",
+
+    "height_standard_ft": 16,
+    "height_standard_note": "16 ft minimum allowed",
+    "height_standard_source": "SB 897",
+
+    "height_near_transit_ft": 18,
+    "height_transit_note": "18 ft if within ½ mile of major transit stop",
+    "height_transit_source": "AB 2221; check TOC layer",
+
+    "parking_replacement": false,
+    "parking_note": "Cannot require replacement parking for demolished garage OR uncovered space",
+    "parking_source": "SB 1211 (Jan 2025)",
+
+    "fire_sprinklers_primary": false,
+    "fire_sprinklers_note": "Cannot require sprinklers in primary dwelling for ADU",
+    "fire_sprinklers_source": "SB 897",
+
+    "permit_decision_days": 60,
+    "permit_completeness_review_days": 15,
+    "permit_completeness_note": "Applications must be reviewed for completeness within 15 business days (SB 543)",
+    "permit_note": "60 days total; must provide written denial reasons",
+    "permit_source": "AB 2221; SB 543 (2026 amendment)",
+
+    "appeal_determination_days": 60,
+    "appeal_note": "Local agencies must provide appeal process and reach determination within 60 days of receipt (SB 543)",
+    "appeal_source": "SB 543 (2026)",
+
+    "impact_fee_exempt_sqft": 750,
+    "impact_fee_note": "ADUs ≤ 750 sqft exempt from impact fees",
+    "impact_fee_source": "Gov. Code §66333"
+  },
+  "multi_adu_rules": {
+    "effective_date": "2026-01-01",
+    "source": "SB 543",
+    "note": "Single-family lots can combine different ADU types",
+    "allowed_combinations": [
+      {
+        "type": "detached_adu",
+        "max_count": 1,
+        "max_sqft": 1200,
+        "note": "New detached structure in yard"
+      },
+      {
+        "type": "converted_adu",
+        "max_count": 1,
+        "note": "Converted from existing garage, basement, or other space"
+      },
+      {
+        "type": "jadu",
+        "max_count": 1,
+        "max_sqft": 500,
+        "note": "Junior ADU — interior livable space measurement (SB 543)"
+      }
+    ],
+    "max_total_units": 3,
+    "jadu_owner_occupancy": "Only required if JADU shares sanitation with primary dwelling (AB 1154, 2026)"
+  },
+  "emergency_provisions": {
+    "effective_date": "2025-10-10",
+    "source": "AB 462 (urgency measure)",
+    "note": "If detached ADU is in a county subject to state emergency proclamation on/after Feb 1, 2025, local agencies must issue certificate of occupancy for ADU even if primary dwelling not yet reconstructed"
+  },
+  "local_ordinance_enforcement": {
+    "source": "SB 9 (2025 session)",
+    "note": "If local agency fails to provide HCD a copy of new/amended ADU ordinance within 60 days or respond to deficiencies within 30 days, the ordinance is null and void. State law becomes sole authority."
+  },
+  "eligible_zones": [
+    "R1", "R2", "R3", "R4", "R5",
+    "RD1.5", "RD2", "RD3", "RD4", "RD5", "RD6",
+    "RS", "RE", "RA"
+  ],
+  "blockers": {
+    "fault_zone": {
+      "action": "flag",
+      "reason": "adu_requires_fault_review",
+      "note": "Fault zone may impose additional setback requirements"
+    },
+    "hpoz": {
+      "action": "flag",
+      "reason": "adu_hpoz_review_required",
+      "note": "Historic Preservation Overlay Zone requires design review"
+    },
+    "coastal": {
+      "action": "flag",
+      "reason": "adu_coastal_review_required",
+      "note": "Coastal Commission review may be required — but AB 462 may apply if in emergency-declared area"
+    }
+  },
+  "ladbs_preapproved": {
+    "program": "LADBS Standard Plan Program",
+    "source": "https://dbs.lacity.gov/adu/approved-standard-plans",
+    "plan_count": 20,
+    "firms_count": 10,
+    "size_range_sqft": [340, 1000],
+    "benefit": "Pre-approved plans reduce approval to 21-30 days (vs 8-12 weeks for custom)",
+    "customization": "Limited — can change windows, doors, colors, rotate floor plan. Larger changes lose pre-approved status.",
+    "cover_models_approved": ["S1", "S2"]
+  }
+}

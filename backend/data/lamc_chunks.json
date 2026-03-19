@@ -1,0 +1,142 @@
+{
+  "12.08": {
+    "section": "SEC. 12.08",
+    "title": "\"R1\" One-Family Zone",
+    "text": "The following regulations shall apply in the \"R1\" One-Family Zone:\n\nA. USE -- No building, structure or land shall be used and no building or structure shall be erected, structurally altered, enlarged, or maintained, except for the following uses:\n\n1. One-family dwelling.\n2. Parks, playgrounds or community centers.\n3. Farming, nurseries or greenhouses.\n4. Accessory buildings, including a private garage.\n5. Accessory living quarters (guest house).\n6. Accessory Dwelling Units per Government Code Section 66314.",
+    "governs": ["base_standards"],
+    "source": "LAMC Chapter 1, Article 2",
+    "building_types": ["SFR", "ADU"]
+  },
+  "12.08.B": {
+    "section": "SEC. 12.08 B",
+    "title": "R1 Lot Area",
+    "text": "Every lot shall have a minimum area of 5,000 square feet. The minimum lot width shall be 50 feet. No more than one dwelling unit may be erected or maintained on each lot in the R1 Zone, except as provided for Accessory Dwelling Units.",
+    "governs": ["min_lot_area"],
+    "source": "LAMC Chapter 1, Article 2, Section 12.08 B",
+    "building_types": ["SFR"]
+  },
+  "12.08.C.2": {
+    "section": "SEC. 12.08 C.2",
+    "title": "R1 Front Yard Setback",
+    "text": "Front Yard. There shall be a front yard of not less than 20 percent of the depth of the lot, but such front yard need not exceed 20 feet; provided, however, that where all of the developed lots which have a front yard that vary from the required front yard by not more than 10 feet on one side of the street between two intersecting streets have front yards of more or less than 20 feet, the required front yard shall be the average of the front yards of such lots, but need not exceed 25 feet.",
+    "governs": ["front_setback"],
+    "source": "LAMC Chapter 1, Article 2, Section 12.08 C.2",
+    "building_types": ["SFR"],
+    "highlight_ranges": [
+      {"start": 42, "end": 133, "label": "20% or 20ft max rule"},
+      {"start": 134, "end": 399, "label": "Prevailing setback exception"}
+    ]
+  },
+  "12.08.C.3": {
+    "section": "SEC. 12.08 C.3",
+    "title": "R1 Side Yard Setback",
+    "text": "Side Yards. For a main building not more than two stories in height, there shall be a side yard on each side of said building of not less than 10 percent of the width of the lot, but not less than 5 feet in width. For a main building more than two stories in height, one foot shall be added to the width of each side yard for each additional story above the second story, but in no event less than 5 feet in width.",
+    "governs": ["interior_side_setback"],
+    "source": "LAMC Chapter 1, Article 2, Section 12.08 C.3",
+    "building_types": ["SFR"],
+    "highlight_ranges": [
+      {"start": 66, "end": 195, "label": "5ft minimum, 10% of lot width"},
+      {"start": 196, "end": 351, "label": "+1ft per story above 2"}
+    ]
+  },
+  "12.08.C.4": {
+    "section": "SEC. 12.08 C.4",
+    "title": "R1 Rear Yard Setback",
+    "text": "Rear Yard. There shall be a rear yard of not less than 15 feet in depth; provided, however, that where lots have a depth of less than 100 feet, the rear yard need not exceed 15 percent of the lot depth, but shall not be less than 10 feet.",
+    "governs": ["rear_setback"],
+    "source": "LAMC Chapter 1, Article 2, Section 12.08 C.4",
+    "building_types": ["SFR"],
+    "highlight_ranges": [
+      {"start": 30, "end": 75, "label": "15ft minimum"}
+    ]
+  },
+  "12.08.C.5": {
+    "section": "SEC. 12.08 C.5",
+    "title": "R1 Residential Floor Area (RFAR)",
+    "text": "Residential Floor Area. The residential floor area contained in all buildings and accessory buildings on a lot shall not exceed:\n\n(a) For lots of 7,500 square feet or less in area: 45 percent of the lot area.\n(b) For lots greater than 7,500 square feet in area: 40 percent of the lot area.\n\nThe residential floor area ratio (RFAR) applies to all covered, enclosed floor area including garages over 200 square feet, covered parking structures, and any habitable attic area with a ceiling height of 7.5 feet or more. This standard is the primary bulk control in R1 zones and determines the maximum building size relative to the lot.",
+    "governs": ["rfar", "max_floor_area"],
+    "source": "LAMC Chapter 1, Article 2, Section 12.08 C.5",
+    "building_types": ["SFR"],
+    "highlight_ranges": [
+      {"start": 128, "end": 193, "label": "45% for lots ≤7,500 sqft"},
+      {"start": 194, "end": 261, "label": "40% for lots >7,500 sqft"}
+    ]
+  },
+  "12.09": {
+    "section": "SEC. 12.09",
+    "title": "\"R2\" Two-Family Zone",
+    "text": "The following regulations shall apply in the \"R2\" Two-Family Zone:\n\nA. USE -- No building, structure or land shall be used and no building or structure shall be erected, structurally altered, enlarged, or maintained, except for the following uses:\n\n1. Any use permitted in the R1 Zone.\n2. Two-family dwelling.\n3. Accessory Dwelling Units per Government Code Section 66314.\n\nB. AREA -- Every lot shall have a minimum area of 5,000 square feet. The minimum lot width shall be 50 feet.\n\nC. YARDS:\n1. Front Yard: There shall be a front yard of not less than 15 feet.\n2. Side Yards: 5 feet where adjacent to an R zone; otherwise 3 feet minimum.\n3. Rear Yard: There shall be a rear yard of not less than 15 feet.",
+    "governs": ["front_setback", "interior_side_setback", "rear_setback", "min_lot_area"],
+    "source": "LAMC Chapter 1, Article 2, Section 12.09",
+    "building_types": ["SFR", "ADU"]
+  },
+  "12.21.1": {
+    "section": "SEC. 12.21.1",
+    "title": "Height Districts",
+    "text": "A. HEIGHT DISTRICT NO. 1 -- No building or structure shall exceed 33 feet in height, or two stories, whichever is less.\n\nThe height of a building shall be measured from the grade to the highest point of the roof. Height District No. 1 is the most common in residential areas of the City of Los Angeles.\n\nVARIATIONS:\n- Height District 1L: Maximum height 36 feet.\n- Height District 1VL: Maximum height 30 feet (Very Low).\n- Height District 1XL: Maximum height 45 feet (Extra Limited).\n- Height Districts 2, 3, 4: Various higher limits; uncommon in residential zones.",
+    "governs": ["max_height", "max_stories"],
+    "source": "LAMC Chapter 1, Article 2, Section 12.21.1",
+    "building_types": ["SFR"]
+  },
+  "12.21.A.4": {
+    "section": "SEC. 12.21 A.4",
+    "title": "Parking Requirements",
+    "text": "Automobile Parking Space Requirements. There shall be provided and maintained at all times on the same lot with the main building the following automobile parking spaces:\n\n(a) Dwellings. Two automobile parking spaces for each dwelling unit, except where one parking space per unit is permitted pursuant to California Government Code Section 66314 for Accessory Dwelling Units.\n\nThe required parking spaces shall be in a garage or carport.",
+    "governs": ["parking"],
+    "source": "LAMC Chapter 1, Article 2, Section 12.21 A.4",
+    "building_types": ["SFR"]
+  },
+  "12.08.C.5.encroachment": {
+    "section": "SEC. 12.08 C.5(a)",
+    "title": "R1 Encroachment Plane",
+    "text": "Encroachment Plane. No portion of any main building or accessory building shall penetrate a plane starting at 20 feet in height at the required side yard setback line and extending at a 45-degree angle toward the interior of the lot. This regulation is intended to prevent excessive massing near side property lines and ensure adequate light and air access to adjacent properties.",
+    "governs": ["encroachment_plane"],
+    "source": "LAMC Chapter 1, Article 2, Section 12.08 C.5(a)",
+    "building_types": ["SFR"]
+  },
+  "12.20.3": {
+    "section": "SEC. 12.20.3",
+    "title": "Historic Preservation Overlay Zone (HPOZ)",
+    "text": "Purpose. The Historic Preservation Overlay Zone (HPOZ) is established to identify and protect neighborhoods with notable historic, cultural, and architectural significance. Within an HPOZ, all exterior modifications, new construction, and demolition are subject to review by the HPOZ Board.\n\nA Certificate of Appropriateness is required for:\n- New construction\n- Additions to existing structures\n- Exterior alterations visible from the public right-of-way\n- Demolition\n\nThe HPOZ Board reviews proposals for consistency with the Secretary of the Interior's Standards for Rehabilitation and the neighborhood's Preservation Plan.",
+    "governs": ["overlay_hpoz"],
+    "source": "LAMC Chapter 1, Article 2, Section 12.20.3",
+    "building_types": ["SFR", "ADU"]
+  },
+  "gov.code.66314": {
+    "section": "Gov. Code §66314",
+    "title": "California ADU Law — State Preemption",
+    "text": "Accessory Dwelling Units. A local agency shall ministerially approve an application for a building permit within a residential or mixed-use zone to create:\n\n(a) One accessory dwelling unit per lot with a proposed or existing single-family dwelling if the accessory dwelling unit:\n  (1) Is not more than 800 square feet in floor area.\n  (2) Has a height not exceeding 16 feet, or 18 feet if within one-half mile of a major transit stop.\n  (3) Has side and rear setbacks of not less than four feet.\n\nNo local agency shall impose requirements on the construction of an accessory dwelling unit that are more restrictive than those specified in this section. State law preempts local ordinances where the state standard is more permissive.",
+    "governs": ["adu_eligibility", "adu_max_height", "adu_side_setback", "adu_rear_setback", "adu_size_guarantee"],
+    "source": "California Government Code Section 66314",
+    "building_types": ["ADU"],
+    "highlight_ranges": [
+      {"start": 225, "end": 282, "label": "800 sqft guarantee"},
+      {"start": 285, "end": 375, "label": "16ft / 18ft height"},
+      {"start": 378, "end": 430, "label": "4ft setback max"}
+    ]
+  },
+  "sb.897": {
+    "section": "SB 897",
+    "title": "ADU Height and Sprinklers",
+    "text": "SB 897 (effective January 1, 2023) amends the ADU statute to:\n\n(a) Establish minimum height limits: Local agencies must allow ADUs of at least 16 feet in height.\n(b) Near major transit stops: Must allow at least 18 feet if within one-half mile.\n(c) Fire sprinklers: A local agency shall not require the installation of fire sprinklers in an existing primary dwelling unit in connection with the construction of an ADU.\n(d) These provisions preempt any local ordinance that imposes stricter requirements.",
+    "governs": ["adu_max_height"],
+    "source": "California Senate Bill 897",
+    "building_types": ["ADU"]
+  },
+  "sb.1211": {
+    "section": "SB 1211",
+    "title": "ADU Parking Replacement Prohibition",
+    "text": "SB 1211 (effective January 1, 2025) prohibits local agencies from requiring replacement parking when:\n\n(a) A garage, carport, or covered parking structure is demolished or converted in connection with the construction of, or conversion to, an accessory dwelling unit or junior accessory dwelling unit.\n\n(b) A local agency shall not require an applicant to provide a replacement parking space for a parking space that is required by local ordinance to be provided for the primary dwelling but is an uncovered space.\n\nThis eliminates a major barrier to ADU construction by removing the parking replacement mandate entirely.",
+    "governs": ["adu_parking_replacement"],
+    "source": "California Senate Bill 1211",
+    "building_types": ["ADU"]
+  },
+  "12.21.C.10": {
+    "section": "SEC. 12.21 C.10",
+    "title": "Hillside Area Regulations (BHO)",
+    "text": "Baseline Hillside Ordinance. In any Hillside Area, the following regulations shall apply in addition to, or in lieu of, the regulations of the underlying zone:\n\n(a) Building height shall be measured from the existing or natural grade, whichever is lower.\n(b) Maximum residential floor area is determined by a graduated formula based on slope band analysis.\n(c) Grading quantities are limited based on lot size and slope.\n(d) Retaining walls visible from the public right-of-way are limited in height.\n(e) Fire Department access requirements apply.\n\nHillside parcels require specialized analysis that differs significantly from flat-lot standards. The Baseline Hillside Ordinance (BHO) completely replaces standard R1/R2 height and FAR calculations with slope-dependent formulas.",
+    "governs": ["overlay_hillside"],
+    "source": "LAMC Chapter 1, Article 2, Section 12.21 C.10",
+    "building_types": ["SFR", "ADU"]
+  }
+}

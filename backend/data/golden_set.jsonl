@@ -1,0 +1,15 @@
+{"address": "1234 S Norton Ave Los Angeles CA 90019", "expected_zone": "R1-1", "scenario": "standard_r1", "notes": "Standard R1 lot in mid-city, ~6000 sqft"}
+{"address": "2345 W 29th St Los Angeles CA 90018", "expected_zone": "R2-1", "scenario": "standard_r2", "notes": "R2 two-family zone, West Adams area"}
+{"address": "4567 W Adams Blvd Los Angeles CA 90016", "expected_zone": "R2", "scenario": "r2_duplex", "notes": "R2 zone along Adams Blvd"}
+{"address": "1000 Vine St Los Angeles CA 90038", "expected_zone": "C4", "scenario": "commercial_near_transit", "notes": "Commercial zone, near Metro station — should flag as out of R1/R2 scope"}
+{"address": "2800 Woodstock Rd Los Angeles CA 90046", "expected_zone": "R1H-1", "scenario": "hillside", "notes": "Hollywood Hills — hillside flag expected"}
+{"address": "123 N Larchmont Blvd Los Angeles CA 90004", "expected_zone": "R1-1", "scenario": "near_transit", "notes": "Near transit — check TOC tier for ADU height bonus"}
+{"address": "456 S Muirfield Rd Los Angeles CA 90005", "expected_zone": "R1-1", "scenario": "large_lot_r1", "notes": "Hancock Park — larger lot, RFAR should be 40%"}
+{"address": "789 S Bronson Ave Los Angeles CA 90005", "expected_zone": "R1-1", "scenario": "standard_r1_alt", "notes": "Standard R1 in mid-Wilshire area"}
+{"address": "100 N Main St Burbank CA 91505", "expected_zone": null, "scenario": "outside_jurisdiction", "notes": "Burbank — should fail at boundary check, no zoning data"}
+{"address": "321 S Windsor Blvd Los Angeles CA 90020", "expected_zone": "R1-1", "scenario": "possible_hpoz", "notes": "Windsor Square — may have HPOZ overlay"}
+{"address": "555 N Van Ness Ave Los Angeles CA 90004", "expected_zone": "R1-1", "scenario": "standard_r1_vanness", "notes": "Standard R1 near Larchmont Village"}
+{"address": "1500 S Gramercy Pl Los Angeles CA 90019", "expected_zone": "R1-1", "scenario": "small_lot_r1", "notes": "Smaller R1 lot — RFAR should be 45%"}
+{"address": "2100 W 30th St Los Angeles CA 90018", "expected_zone": "R2-1", "scenario": "r2_west_adams", "notes": "R2 in West Adams — two-family standards"}
+{"address": "3456 Mandeville Canyon Rd Los Angeles CA 90049", "expected_zone": "RE", "scenario": "estate_zone", "notes": "RE zone in Brentwood — out of R1/R2 scope"}
+{"address": "890 Alandele Ave Los Angeles CA 90036", "expected_zone": "R1-1", "scenario": "standard_r1_fairfax", "notes": "Standard R1 near Fairfax"}

@@ -1,0 +1,110 @@
+---
+title: Cover Regulatory Engine — Production Architecture
+---
+flowchart TB
+    subgraph Frontend["Frontend (React + Mapbox GL JS + MUI)"]
+        UI[Address Input +<br/>Project Parameters]
+        Map[Map Panel<br/>Parcel + Setback Overlay]
+        Panel[Assessment Report<br/>SFR / ADU / Citations / Chat]
+        FB[Feedback Loop<br/>Per-finding thumbs up/down]
+    end
+
+    subgraph API["FastAPI Backend"]
+        EP["/api/assess — Main endpoint"]
+        Chat["/api/chat — SSE streaming"]
+        FBE["/api/feedback — User corrections"]
+        Pipeline[Pipeline Orchestrator<br/>Timed, fail-fast, partial results]
+    end
+
+    subgraph DataPipeline["Phase 1: Data Acquisition"]
+        GC[Geocoder<br/>City Centerline + Census Fallback<br/>→ lat, lon, match_score]
+        BC[Boundary Check<br/>LA City Limits Gate<br/>→ inside/outside]
+        PL[Parcel Lookup<br/>County MapServer/0<br/>→ APN, lot area, geometry]
+        ZL[Zoning Lookup<br/>City FeatureServer/15<br/>→ zoning string, category]
+        ZP[Zone Parser<br/>Regex decomposition<br/>→ base, HD, hillside, flags]
+    end
+
+    subgraph RuleEngine["Phase 2: Deterministic Rule Engine"]
+        RE[SFR Standards<br/>CP-7150 Table Lookup<br/>→ setbacks, height, RFAR]
+        OE[Overlay Detection<br/>HPOZ, hillside, specific plan<br/>→ OverlayFlags]
+        GE[Geometry Engine<br/>Shapely setback inset<br/>→ buildable envelope GeoJSON]
+        AE[ADU Engine<br/>Gov. Code §66314<br/>→ eligibility, size, height, fees]
+    end
+
+    subgraph Synthesis["Phase 3: Synthesis & Enrichment"]
+        AS[Assessment Assembly<br/>Verdict computation<br/>→ ALLOWED / FLAGGED / NOT_EVAL]
+        CL[Claude API<br/>Explain + summarize<br/>Never overrides rules]
+    end
+
+    subgraph Data["Data Stores"]
+        DB[(SQLite → Postgres<br/>feedback, cached results)]
+        RF[rule_fragments.json<br/>CP-7150 Tables]
+        AR[adu_rules.json<br/>State ADU Law]
+        LC[lamc_chunks.json<br/>§12.08, §12.09, §12.21]
+        GS[golden_set.jsonl<br/>15 curated test parcels]
+    end
+
+    subgraph External["External APIs (ArcGIS REST Services)"]
+        E1[maps.lacity.org<br/>centerlineLocator]
+        E2[public.gis.lacounty.gov<br/>LACounty_Parcel/0]
+        E3[services5.arcgis.com<br/>Zoning FeatureServer/15]
+        E4[maps.lacity.org<br/>Boundaries MapServer/7]
+    end
+
+    UI -->|"address + params"| EP
+    EP --> Pipeline
+    Panel -->|"question + context"| Chat
+    FB --> FBE
+
+    Pipeline --> GC
+    GC -->|"lat, lon, score"| BC
+    BC -->|"inside = true"| PL
+    BC -->|"inside = false → early return"| EP
+
+    PL -->|ParcelObservation| ZL
+    ZL -->|ZoningObservation| ZP
+
+    ZP --> RE
+    ZP --> OE
+
+    RE -->|"RegulatoryFinding[]"| GE
+    OE -->|OverlayFlags| AE
+    GE -->|"envelope_area_sqft"| AE
+
+    RE -->|SFR findings| AS
+    OE -->|overlay findings| AS
+    GE -->|envelope GeoJSON| AS
+    AE -->|ADU findings| AS
+
+    AS -->|BuildabilityAssessment| CL
+    CL -->|"enriched summaries"| AS
+
+    AS -->|"final JSON"| Pipeline
+
+    RE -.->|reads| RF
+    AE -.->|reads| AR
+    CL -.->|"LAMC context"| LC
+    FBE -.->|writes| DB
+
+    GC -->|HTTP| E1
+    PL -->|HTTP| E2
+    ZL -->|HTTP| E3
+    BC -->|HTTP| E4
+
+    Pipeline -->|BuildabilityAssessment| Panel
+    Pipeline -->|GeoJSON| Map
+
+    %% Styling
+    classDef deterministic fill:#dcfce7,stroke:#16a34a,color:#166534
+    classDef llm fill:#eff6ff,stroke:#2563eb,color:#1d4ed8
+    classDef external fill:#fef3c7,stroke:#d97706,color:#92400e
+    classDef data fill:#f1f5f9,stroke:#94a3b8,color:#475569
+    classDef frontend fill:#fce7f3,stroke:#db2777,color:#9d174d
+    classDef api fill:#f0fdf4,stroke:#16a34a,color:#166534
+
+    class RE,OE,GE,AE,AS deterministic
+    class CL llm
+    class E1,E2,E3,E4 external
+    class DB,RF,AR,GS,LC data
+    class UI,Map,Panel,FB frontend
+    class EP,Chat,FBE,Pipeline api

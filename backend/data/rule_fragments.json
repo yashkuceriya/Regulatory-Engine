@@ -1,0 +1,115 @@
+{
+  "_meta": {
+    "source": "CP-7150 Zoning Code Summary (Jan 2026), Tables 1a & 2",
+    "lamc_authority": "LAMC Chapter 1",
+    "last_updated": "2026-03-16",
+    "notes": "Values hand-verified against CP-7150 PDF. This is the primary lookup source for deterministic rule engine."
+  },
+  "R1": {
+    "zone_name": "R1 One-Family Zone",
+    "lamc_section": "12.08",
+    "min_lot_area_sqft": 5000,
+    "front_setback_ft": 20,
+    "front_setback_note": "or prevailing setback, whichever is greater",
+    "interior_side_setback_ft": 5,
+    "side_setback_note": "+1 ft per 10 ft height above 18 ft",
+    "rear_setback_ft": 15,
+    "max_height_ft": 33,
+    "max_stories": 2,
+    "height_district": "1",
+    "rfar_small_lot": {
+      "threshold_sqft": 7500,
+      "factor": 0.45,
+      "description": "45% of lot area for lots ≤ 7,500 sqft"
+    },
+    "rfar_large_lot": {
+      "threshold_sqft": 7500,
+      "factor": 0.40,
+      "description": "40% of lot area for lots > 7,500 sqft"
+    },
+    "parking_spaces": 2,
+    "parking_note": "2 covered spaces required",
+    "encroachment_plane": {
+      "start_height_ft": 20,
+      "angle_degrees": 45,
+      "note": "Starts at 20 ft, 45° inward — emit as FLAG not geometry in week 1"
+    },
+    "variation_zones": {
+      "R1V": {"lamc_section": "12.08 C.5(b)", "note": "R1 Variation — different envelope rules"},
+      "R1F": {"lamc_section": "12.08 C.5(c)", "note": "R1F — different lot coverage"},
+      "R1R": {"lamc_section": "12.08 C.5(d)", "note": "R1R — rural residential"},
+      "R1H": {"lamc_section": "12.08 C.5(d)", "note": "R1H — hillside, completely different rules"}
+    },
+    "source": "CP-7150 Table 1a",
+    "lamc_citations": [
+      "LAMC §12.08 B (min lot area)",
+      "LAMC §12.08 C.2 (front setback)",
+      "LAMC §12.08 C.3 (side setback)",
+      "LAMC §12.08 C.4 (rear setback)",
+      "LAMC §12.08 C.5 (RFAR)",
+      "LAMC §12.21.1 (height)",
+      "LAMC §12.21 A.4 (parking)"
+    ]
+  },
+  "R2": {
+    "zone_name": "R2 Two-Family Zone",
+    "lamc_section": "12.09",
+    "min_lot_area_sqft": 5000,
+    "front_setback_ft": 15,
+    "interior_side_setback_ft": 5,
+    "side_setback_note": "3 ft minimum; 5 ft if adjacent to R zone",
+    "side_setback_adjacent_r_ft": 5,
+    "side_setback_min_ft": 3,
+    "rear_setback_ft": 15,
+    "max_height_ft": 33,
+    "max_stories": 2,
+    "height_district": "1",
+    "far": {
+      "hd1": 3.0,
+      "description": "3:1 FAR for Height District 1"
+    },
+    "source": "CP-7150 Table 1a",
+    "lamc_citations": [
+      "LAMC §12.09 (R2 zone)",
+      "LAMC §12.21.1 (height districts)",
+      "CP-7150 Table 1a (setbacks)",
+      "CP-7150 Table 2 (height/FAR)"
+    ]
+  },
+  "height_districts": {
+    "1": {
+      "max_height_ft": 33,
+      "max_stories": 2,
+      "note": "Most common in residential areas",
+      "detection": "Parse trailing '-1' in zoning string"
+    },
+    "1L": {
+      "max_height_ft": 36,
+      "note": "Limited height district",
+      "detection": "Parse '-1L' suffix"
+    },
+    "1VL": {
+      "max_height_ft": 30,
+      "note": "Very limited — stricter FAR",
+      "detection": "Parse '-1VL' suffix"
+    },
+    "1XL": {
+      "max_height_ft": 45,
+      "note": "Extra limited — flag as non-standard",
+      "detection": "Parse '-1XL' suffix"
+    },
+    "2": {
+      "note": "Uncommon in residential — emit not_evaluated",
+      "detection": "Parse '-2' suffix"
+    },
+    "3": {
+      "note": "Uncommon in residential — emit not_evaluated",
+      "detection": "Parse '-3' suffix"
+    },
+    "4": {
+      "note": "Uncommon in residential — emit not_evaluated",
+      "detection": "Parse '-4' suffix"
+    },
+    "source": "CP-7150 Table 2; LAMC §12.21.1"
+  }
+}
