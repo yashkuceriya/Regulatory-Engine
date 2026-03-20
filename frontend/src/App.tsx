@@ -1,20 +1,20 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import {
   AppBar, Toolbar, Box, Typography, Button, TextField, InputAdornment,
   Avatar, Chip, Card, CardContent,
   Stack, Alert, CircularProgress, Fab, Tooltip, Collapse, IconButton,
-  Menu, MenuItem, ListItemIcon, ListItemText, Divider,
+  Menu, MenuItem, ListItemIcon, ListItemText, Divider, Autocomplete,
 } from '@mui/material'
 import {
   Search, Home, CheckCircle,
   LocationOn, Assessment, Map as MapIcon, Description, AutoAwesome,
   Tune, ExpandMore, History, CompareArrows, Architecture,
   Person, Logout, HelpOutline, Info,
-  Storage, ErrorOutline, Refresh,
+  Storage, ErrorOutline, Refresh, DarkMode, LightMode,
 } from '@mui/icons-material'
 import ErrorBoundary from './components/ErrorBoundary'
+import { useThemeMode } from './main'
 import AssessmentFullPage from './components/AssessmentFullPage'
-import AssessmentSkeleton from './components/AssessmentSkeleton'
 import PipelineStatus from './components/PipelineStatus'
 import ChatPanel from './components/ChatPanel'
 import ZoningMapView from './components/ZoningMapView'
@@ -31,6 +31,7 @@ import type { BuildabilityAssessment } from './types/assessment'
 type AppView = 'dashboard' | 'assessments' | 'zoning-map' | 'compare'
 
 export default function App() {
+  const themeMode = useThemeMode()
   const [assessment, setAssessment] = useState<BuildabilityAssessment | null>(null)
   const [searchValue, setSearchValue] = useState('')
   const [chatOpen, setChatOpen] = useState(false)
@@ -43,11 +44,37 @@ export default function App() {
   const [avatarAnchor, setAvatarAnchor] = useState<null | HTMLElement>(null)
   const [searchError, setSearchError] = useState('')
   const { history, saveAssessment, loadAssessment, clearHistory } = useAssessmentHistory()
+  const searchRef = useRef<HTMLInputElement>(null)
   const mutation = useAssessment()
   const {
     data: demoAddresses,
     isError: demoAddressesError,
   } = useDemoAddresses()
+
+  const typeaheadOptions = useMemo(() => {
+    const options: string[] = []
+    if (demoAddresses) demoAddresses.forEach((d: any) => options.push(d.address))
+    history.forEach(h => { if (!options.includes(h.address)) options.push(h.address) })
+    return options
+  }, [demoAddresses, history])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+
+      if (e.key === '/') {
+        e.preventDefault()
+        searchRef.current?.focus()
+      }
+      if (e.key === 'Escape') {
+        if (chatOpen) setChatOpen(false)
+        else if (assessment) setAssessment(null)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [assessment, chatOpen])
 
   const handleSearch = (address?: string) => {
     const addr = address || searchValue.trim()
@@ -126,31 +153,42 @@ export default function App() {
           </Stack>
 
           <Box sx={{ flex: 1, maxWidth: 380, ml: 'auto' }}>
-            <TextField
-              fullWidth size="small" placeholder="Enter an LA address..."
-              autoFocus={!assessment}
-              value={searchValue}
-              onChange={e => { setSearchValue(e.target.value); if (searchError) setSearchError('') }}
-              onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              disabled={mutation.isPending}
-              error={!!searchError}
-              helperText={searchError}
-              InputProps={{
-                startAdornment: <InputAdornment position="start"><Search sx={{ fontSize: 15, color: '#b0a69d' }} /></InputAdornment>,
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <Button
-                      variant="contained" size="small"
-                      onClick={() => handleSearch()}
-                      disabled={mutation.isPending || searchValue.trim().length < 5}
-                      sx={{ minWidth: 64, fontSize: '0.7rem', py: 0.2, borderRadius: 1.5, boxShadow: 'none' }}
-                    >
-                      {mutation.isPending ? <CircularProgress size={14} color="inherit" /> : 'Assess'}
-                    </Button>
-                  </InputAdornment>
-                ),
-                sx: { fontSize: '0.75rem', borderRadius: 1.5, bgcolor: '#f5f0eb' },
-              }}
+            <Autocomplete
+              freeSolo
+              options={typeaheadOptions}
+              inputValue={searchValue}
+              onInputChange={(_, v) => { setSearchValue(v); if (searchError) setSearchError('') }}
+              onChange={(_, v) => { if (typeof v === 'string' && v.length >= 5) { setSearchValue(v); handleSearch(v) } }}
+              ListboxProps={{ style: { maxHeight: 200, fontSize: '0.75rem' } }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  inputRef={searchRef}
+                  fullWidth size="small" placeholder="Enter an LA address... (press /)"
+                  autoFocus={!assessment}
+                  onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                  disabled={mutation.isPending}
+                  error={!!searchError}
+                  helperText={searchError}
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: <InputAdornment position="start"><Search sx={{ fontSize: 15, color: '#b0a69d' }} /></InputAdornment>,
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <Button
+                          variant="contained" size="small"
+                          onClick={() => handleSearch()}
+                          disabled={mutation.isPending || searchValue.trim().length < 5}
+                          sx={{ minWidth: 64, fontSize: '0.7rem', py: 0.2, borderRadius: 1.5, boxShadow: 'none' }}
+                        >
+                          {mutation.isPending ? <CircularProgress size={14} color="inherit" /> : 'Assess'}
+                        </Button>
+                      </InputAdornment>
+                    ),
+                    sx: { fontSize: '0.75rem', borderRadius: 1.5, bgcolor: '#f5f0eb' },
+                  }}
+                />
+              )}
             />
           </Box>
           <Tooltip title="Assessment history">
@@ -161,6 +199,11 @@ export default function App() {
           <Tooltip title="Project parameters">
             <IconButton size="small" onClick={() => setShowParams(!showParams)} sx={{ p: 0.5 }}>
               <Tune sx={{ fontSize: 16, color: showParams ? 'primary.main' : 'text.disabled' }} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Toggle dark mode">
+            <IconButton size="small" onClick={() => themeMode.toggle()} sx={{ p: 0.5 }}>
+              {themeMode.mode === 'dark' ? <LightMode sx={{ fontSize: 16, color: 'text.disabled' }} /> : <DarkMode sx={{ fontSize: 16, color: 'text.disabled' }} />}
             </IconButton>
           </Tooltip>
           <Avatar
@@ -272,7 +315,17 @@ export default function App() {
         ) : view === 'compare' ? (
           <CompareView />
         ) : mutation.isPending ? (
-          <AssessmentSkeleton />
+          <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default' }}>
+            <Box sx={{ textAlign: 'center' }}>
+              <CircularProgress size={28} sx={{ color: '#3d2c24', mb: 1.5 }} />
+              <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#7a6e65' }}>
+                Running assessment pipeline...
+              </Typography>
+              <Typography sx={{ fontSize: 11, color: '#b0a69d', mt: 0.5 }}>
+                {pendingQuery ? `${pendingQuery.split(',')[0]}` : 'Analyzing address'}
+              </Typography>
+            </Box>
+          </Box>
         ) : mutation.isError ? (
           <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default' }}>
             <Card sx={{ maxWidth: 400, textAlign: 'center', p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>

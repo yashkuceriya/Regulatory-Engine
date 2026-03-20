@@ -7,12 +7,20 @@ import type { BuildabilityAssessment } from '../types/assessment'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
 
+// Cover's unit specs for ADU placement sizing
+const COVER_UNITS = [
+  { model: 'S1', sqft: 580, minBuildable: 700, minLotSqft: 3500 },
+  { model: 'S2', sqft: 800, minBuildable: 1000, minLotSqft: 5000 },
+  { model: 'Custom Build', sqft: 1200, minBuildable: 1500, minLotSqft: 7000 },
+]
+
 interface Props { assessment: BuildabilityAssessment; showParcel?: boolean; showEnvelope?: boolean }
 
 export default function MapPanel({ assessment, showParcel = true, showEnvelope = true }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const setbackMarkersRef = useRef<mapboxgl.Marker[]>([])
+  const aduMarkerRef = useRef<mapboxgl.Marker | null>(null)
   const parcelGeo = assessment.parcel?.geometry
   const envelopeGeo = assessment.buildable_envelope
 
@@ -26,6 +34,96 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
       return { front: frontSetback, side: sideSetback, rear: rearSetback }
     } catch {
       return { front: undefined, side: undefined, rear: undefined }
+    }
+  }, [assessment])
+
+  // Determine best-fitting Cover unit and compute ADU footprint rectangle
+  const aduFootprint = useMemo(() => {
+    try {
+      const lotArea = assessment.parcel?.lot_area_sqft || 0
+      const buildableArea = assessment.buildable_envelope?.properties?.envelope_area_sqft || 0
+      const effectiveBuildable = buildableArea || (lotArea * 0.55)
+      if (!effectiveBuildable || !lotArea) return null
+
+      // Pick the largest fitting unit
+      const fittingUnits = COVER_UNITS.filter(
+        u => effectiveBuildable >= u.minBuildable && lotArea >= u.minLotSqft
+      )
+      if (fittingUnits.length === 0) return null
+      const bestUnit = fittingUnits[fittingUnits.length - 1]
+
+      // Need envelope geometry to place the rectangle
+      const envGeo = assessment.buildable_envelope?.geometry
+      if (!envGeo) return null
+
+      const coords: number[][] = envGeo.type === 'Polygon'
+        ? envGeo.coordinates[0]
+        : envGeo.type === 'MultiPolygon'
+          ? envGeo.coordinates[0][0]
+          : []
+      if (coords.length < 4) return null
+
+      // Compute envelope bounding box
+      const lngs = coords.map((c: number[]) => c[0])
+      const lats = coords.map((c: number[]) => c[1])
+      const minLng = Math.min(...lngs)
+      const maxLng = Math.max(...lngs)
+      const minLat = Math.min(...lats)
+      const maxLat = Math.max(...lats)
+
+      const envW = maxLng - minLng
+      const envH = maxLat - minLat
+      if (envW === 0 || envH === 0) return null
+
+      // Size ADU proportionally: sqrt(unitSqft / lotSqft) * dimension
+      const scale = Math.sqrt(bestUnit.sqft / lotArea)
+      const aduW = scale * envW
+      const aduH = scale * envH
+
+      // Place in rear portion of envelope (away from street = higher lat values
+      // for typical LA parcels where front/street is at lower lat, but we use
+      // the "rear" = top of bbox as a safe heuristic)
+      // Position: centered horizontally, pushed toward the rear (maxLat) with a small margin
+      const margin = 0.15 // 15% inset from rear edge
+      const centerLng = (minLng + maxLng) / 2
+      const rearLat = maxLat - envH * margin
+
+      const aduMinLng = centerLng - aduW / 2
+      const aduMaxLng = centerLng + aduW / 2
+      const aduMaxLat = rearLat
+      const aduMinLat = rearLat - aduH
+
+      // Clamp within envelope bounds
+      const clampedMinLng = Math.max(aduMinLng, minLng)
+      const clampedMaxLng = Math.min(aduMaxLng, maxLng)
+      const clampedMinLat = Math.max(aduMinLat, minLat)
+      const clampedMaxLat = Math.min(aduMaxLat, maxLat)
+
+      const polygon: [number, number][] = [
+        [clampedMinLng, clampedMinLat],
+        [clampedMaxLng, clampedMinLat],
+        [clampedMaxLng, clampedMaxLat],
+        [clampedMinLng, clampedMaxLat],
+        [clampedMinLng, clampedMinLat], // close ring
+      ]
+
+      const aduCenter: [number, number] = [
+        (clampedMinLng + clampedMaxLng) / 2,
+        (clampedMinLat + clampedMaxLat) / 2,
+      ]
+
+      return {
+        polygon,
+        center: aduCenter,
+        label: `Cover ${bestUnit.model}`,
+        geojson: {
+          type: 'Feature' as const,
+          geometry: { type: 'Polygon' as const, coordinates: [polygon] },
+          properties: {},
+        },
+      }
+    } catch {
+      return null
     }
   }, [assessment])
 
@@ -85,6 +183,29 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
             paint: { 'fill-color': 'rgba(217, 119, 6, 0.15)' }
           }, 'env-fill') // place before env-fill so envelope covers the inner area
         } catch { /* geometry may be unsupported */ }
+      }
+
+      // ADU footprint rectangle
+      if (aduFootprint && showEnvelope) {
+        try {
+          map.addSource('adu-footprint', { type: 'geojson', data: aduFootprint.geojson as GeoJSON.Feature })
+          map.addLayer({
+            id: 'adu-fill', type: 'fill', source: 'adu-footprint',
+            paint: { 'fill-color': 'rgba(193, 120, 85, 0.3)' },
+          })
+          map.addLayer({
+            id: 'adu-line', type: 'line', source: 'adu-footprint',
+            paint: { 'line-color': '#c17855', 'line-width': 2, 'line-dasharray': [4, 3] },
+          })
+
+          // HTML marker label centered on the ADU rectangle
+          const labelEl = document.createElement('div')
+          labelEl.innerHTML = `<span style="background:rgba(193,120,85,0.92);padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;color:#fff;white-space:nowrap;letter-spacing:0.3px">${aduFootprint.label}</span>`
+          const aduMarker = new mapboxgl.Marker({ element: labelEl, anchor: 'center' })
+            .setLngLat(aduFootprint.center)
+            .addTo(map)
+          aduMarkerRef.current = aduMarker
+        } catch { /* ADU layer add failed */ }
       }
 
       // Setback distance labels at parcel edge midpoints
@@ -174,9 +295,11 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
     return () => {
       setbackMarkersRef.current.forEach(m => m.remove())
       setbackMarkersRef.current = []
+      aduMarkerRef.current?.remove()
+      aduMarkerRef.current = null
       map.remove()
     }
-  }, [center, parcelGeo, envelopeGeo])
+  }, [center, parcelGeo, envelopeGeo, aduFootprint])
 
   // Toggle layer visibility
   useEffect(() => {
@@ -184,8 +307,15 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
     if (!map || !map.isStyleLoaded()) return
     const parcelLayers = ['parcel-glow', 'parcel-fill', 'parcel-line']
     const envLayers = ['env-fill', 'env-line']
+    const aduLayers = ['adu-fill', 'adu-line']
     parcelLayers.forEach(id => { try { map.setLayoutProperty(id, 'visibility', showParcel ? 'visible' : 'none') } catch {} })
     envLayers.forEach(id => { try { map.setLayoutProperty(id, 'visibility', showEnvelope ? 'visible' : 'none') } catch {} })
+    aduLayers.forEach(id => { try { map.setLayoutProperty(id, 'visibility', showEnvelope ? 'visible' : 'none') } catch {} })
+
+    // ADU label marker: toggle via display style
+    if (aduMarkerRef.current) {
+      aduMarkerRef.current.getElement().style.display = showEnvelope ? '' : 'none'
+    }
 
     // Setback fill visible only when both parcel and envelope are shown
     const showSetback = showParcel && showEnvelope
@@ -217,6 +347,7 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
           <LegendItem color="#c17855" label="Parcel" />
           {envelopeGeo && <LegendItem color="#22c55e" label="Buildable" dashed />}
           {parcelGeo && envelopeGeo && <LegendItem color="#d97706" label="Setback" />}
+          {aduFootprint && <LegendItem color="#c17855" label="ADU Placement" dashed />}
         </Stack>
         <Stack direction="row" spacing={1.5} alignItems="center">
           {assessment.parcel?.apn && (

@@ -1,112 +1,212 @@
 import { useState, useEffect } from 'react'
-import { Box, Typography, Stack, LinearProgress } from '@mui/material'
-import {
-  LocationOn, Shield, GridOn, Layers, Calculate, Home, ViewInAr, AutoAwesome,
-} from '@mui/icons-material'
+import { Box, Typography, Stack, CircularProgress } from '@mui/material'
+import { CheckCircle } from '@mui/icons-material'
 
 const PIPELINE_STEPS = [
-  { label: 'Geocoding', icon: <LocationOn sx={{ fontSize: 14 }} />, duration: 1200 },
-  { label: 'Boundary', icon: <Shield sx={{ fontSize: 14 }} />, duration: 800 },
-  { label: 'Parcel', icon: <GridOn sx={{ fontSize: 14 }} />, duration: 1500 },
-  { label: 'Zoning', icon: <Layers sx={{ fontSize: 14 }} />, duration: 1200 },
-  { label: 'Rules', icon: <Calculate sx={{ fontSize: 14 }} />, duration: 600 },
-  { label: 'ADU', icon: <Home sx={{ fontSize: 14 }} />, duration: 500 },
-  { label: 'Geometry', icon: <ViewInAr sx={{ fontSize: 14 }} />, duration: 800 },
-  { label: 'Synthesis', icon: <AutoAwesome sx={{ fontSize: 14 }} />, duration: 2000 },
+  { label: 'Geocoding' },
+  { label: 'Boundary Check' },
+  { label: 'Parcel Lookup' },
+  { label: 'Zoning Query' },
+  { label: 'Rule Engine' },
+  { label: 'Overlay Detection' },
+  { label: 'Geometry' },
+  { label: 'ADU Engine' },
+  { label: 'Assembly' },
 ]
+
+const STEP_INTERVAL_MS = 1500
 
 interface Props {
   query?: string | null
+  isComplete?: boolean
+  pipelineTiming?: Record<string, number>
 }
 
-export default function PipelineStatus({ query }: Props) {
+export default function PipelineStatus({ query, isComplete, pipelineTiming }: Props) {
   const [activeStep, setActiveStep] = useState(0)
-  const [progress, setProgress] = useState(0)
+  const [stepStartTimes, setStepStartTimes] = useState<number[]>([])
+  const [stepDurations, setStepDurations] = useState<(number | null)[]>(
+    () => PIPELINE_STEPS.map(() => null)
+  )
 
+  // Reset and simulate step progression
   useEffect(() => {
     setActiveStep(0)
-    setProgress(0)
-    const totalDuration = PIPELINE_STEPS.reduce((a, b) => a + b.duration, 0)
-    let elapsed = 0
+    setStepDurations(PIPELINE_STEPS.map(() => null))
+    const startTime = Date.now()
+    setStepStartTimes([startTime])
 
     const interval = setInterval(() => {
-      elapsed += 100
-      let acc = 0
-      for (let i = 0; i < PIPELINE_STEPS.length; i++) {
-        acc += PIPELINE_STEPS[i].duration
-        if (elapsed < acc) {
-          setActiveStep(i)
-          break
+      setActiveStep((prev) => {
+        const next = prev + 1
+        if (next >= PIPELINE_STEPS.length) {
+          clearInterval(interval)
+          return prev
         }
-        if (i === PIPELINE_STEPS.length - 1) setActiveStep(i)
-      }
-      setProgress(Math.min((elapsed / totalDuration) * 100, 95))
-    }, 100)
+        const now = Date.now()
+        // Record duration for the step that just completed
+        setStepDurations((durations) => {
+          const updated = [...durations]
+          updated[prev] = now - startTime - prev * STEP_INTERVAL_MS
+          return updated
+        })
+        setStepStartTimes((times) => [...times, now])
+        return next
+      })
+    }, STEP_INTERVAL_MS)
 
     return () => clearInterval(interval)
   }, [query])
 
+  // When assessment completes, mark all steps done
+  useEffect(() => {
+    if (isComplete) {
+      setActiveStep(PIPELINE_STEPS.length)
+      if (pipelineTiming) {
+        // Map backend timing to step durations if available
+        const timingKeys = Object.keys(pipelineTiming)
+        setStepDurations(
+          PIPELINE_STEPS.map((step, i) => {
+            const key = timingKeys[i]
+            return key && pipelineTiming[key] != null
+              ? Math.round(pipelineTiming[key])
+              : stepDurations[i] ?? null
+          })
+        )
+      } else {
+        setStepDurations((prev) => prev.map((d) => d ?? null))
+      }
+    }
+  }, [isComplete, pipelineTiming])
+
   return (
-    <Box sx={{ px: 3, py: 1.2, borderBottom: 1, borderColor: 'divider', bgcolor: '#fff' }}>
-      {/* Step indicators */}
-      <Stack direction="row" spacing={0} alignItems="center" sx={{ mb: 1 }}>
+    <Box
+      sx={{
+        px: 3,
+        py: 1.5,
+        borderBottom: 1,
+        borderColor: 'divider',
+        bgcolor: '#fff',
+      }}
+    >
+      <Stack
+        direction="row"
+        alignItems="center"
+        sx={{
+          width: '100%',
+          minHeight: 60,
+          overflowX: 'auto',
+          '&::-webkit-scrollbar': { display: 'none' },
+        }}
+      >
         {PIPELINE_STEPS.map((step, i) => {
-          const isActive = i === activeStep
           const isDone = i < activeStep
+          const isActive = i === activeStep && !isComplete
+          const isPending = i > activeStep
+
           return (
-            <Box key={step.label} sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-              <Box sx={{
-                display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.4,
-                borderRadius: 1.5, transition: 'all 0.3s ease',
-                bgcolor: isActive ? 'rgba(61,44,36,0.06)' : isDone ? 'rgba(22,163,74,0.06)' : 'transparent',
-                border: '1px solid',
-                borderColor: isActive ? '#3d2c24' : isDone ? '#bbf7d0' : 'transparent',
-              }}>
-                <Box sx={{
-                  color: isActive ? '#3d2c24' : isDone ? '#16a34a' : '#d4c8be',
-                  display: 'flex', alignItems: 'center',
-                  animation: isActive ? 'pulse 1.5s infinite' : 'none',
-                }}>
-                  {step.icon}
-                </Box>
-                <Typography sx={{
-                  fontSize: 10, fontWeight: isActive ? 700 : 500,
-                  color: isActive ? '#3d2c24' : isDone ? '#16a34a' : '#b0a69d',
-                  whiteSpace: 'nowrap',
-                }}>
+            <Box
+              key={step.label}
+              sx={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}
+            >
+              {/* Step node */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 0.3,
+                  minWidth: 64,
+                  flexShrink: 0,
+                }}
+              >
+                {/* Icon circle */}
+                {isDone ? (
+                  <CheckCircle
+                    sx={{
+                      fontSize: 20,
+                      color: '#16a34a',
+                      transition: 'all 0.3s ease',
+                    }}
+                  />
+                ) : isActive ? (
+                  <Box
+                    sx={{
+                      animation: 'pulse 1.5s ease-in-out infinite',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <CircularProgress
+                      size={18}
+                      thickness={5}
+                      sx={{ color: '#3d2c24' }}
+                    />
+                  </Box>
+                ) : (
+                  <Box
+                    sx={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      bgcolor: '#e5ddd5',
+                      border: '2px solid #d4c8be',
+                      transition: 'all 0.3s ease',
+                    }}
+                  />
+                )}
+
+                {/* Label */}
+                <Typography
+                  sx={{
+                    fontSize: 9,
+                    fontWeight: isActive ? 700 : isDone ? 600 : 500,
+                    color: isActive ? '#3d2c24' : isDone ? '#16a34a' : '#b0a69d',
+                    whiteSpace: 'nowrap',
+                    textAlign: 'center',
+                    lineHeight: 1.2,
+                    transition: 'color 0.3s ease',
+                  }}
+                >
                   {step.label}
                 </Typography>
+
+                {/* Duration */}
+                <Typography
+                  sx={{
+                    fontSize: 8,
+                    color: '#b0a69d',
+                    fontWeight: 500,
+                    minHeight: 10,
+                    textAlign: 'center',
+                  }}
+                >
+                  {isDone && stepDurations[i] != null
+                    ? `${stepDurations[i]}ms`
+                    : ''}
+                </Typography>
               </Box>
+
+              {/* Connector line */}
               {i < PIPELINE_STEPS.length - 1 && (
-                <Box sx={{
-                  flex: 1, height: 1, mx: 0.3,
-                  bgcolor: isDone ? '#bbf7d0' : '#e5ddd5',
-                  transition: 'background-color 0.3s ease',
-                }} />
+                <Box
+                  sx={{
+                    flex: 1,
+                    height: 2,
+                    mx: 0.5,
+                    mt: -1.5,
+                    borderRadius: 1,
+                    bgcolor: isDone ? '#bbf7d0' : '#e5ddd5',
+                    transition: 'background-color 0.4s ease',
+                    minWidth: 8,
+                  }}
+                />
               )}
             </Box>
           )
         })}
       </Stack>
-
-      {/* Progress bar */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <LinearProgress
-          variant="determinate"
-          value={progress}
-          sx={{
-            flex: 1, height: 4, borderRadius: 2, bgcolor: '#f0ebe5',
-            '& .MuiLinearProgress-bar': {
-              borderRadius: 2,
-              background: 'linear-gradient(90deg, #3d2c24, #5a4238)',
-              transition: 'transform 0.3s ease',
-            },
-          }}
-        />
-        <Typography sx={{ fontSize: 11, fontWeight: 600, color: '#7a6e65', minWidth: 80 }}>
-          {query ? `${query.split(',')[0]}...` : 'Analyzing...'}
-        </Typography>
-      </Box>
     </Box>
   )
 }
