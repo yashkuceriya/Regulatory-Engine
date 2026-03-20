@@ -137,7 +137,7 @@ class Settings:
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:5174,http://localhost:3000"
 
     # LLM
-    LLM_MODEL: str = "claude-sonnet-4-6"
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "claude-sonnet-4-6")
 
 
 SETTINGS = Settings()

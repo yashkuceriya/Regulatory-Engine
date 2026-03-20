@@ -80,11 +80,13 @@ def compute_buildable_envelope(
             logger.warning("Setback inset produced empty geometry — lot too small")
             return None
 
-        # Apply additional inset for larger setbacks
-        # This is approximate — production would identify actual front/side/rear edges
+        # Apply additional inset for larger setbacks.
+        # 0.3 weighting: front setback is typically only one edge, so we apply
+        # 30% of the difference as uniform buffer to approximate the asymmetric
+        # inset without per-edge geometry analysis. Production would identify
+        # actual front/side/rear edges from street-facing azimuth.
         if front > min_setback:
-            # Further inset to approximate front setback
-            additional = (front - min_setback) * 0.3  # Weighted average
+            additional = (front - min_setback) * 0.3
             envelope = envelope.buffer(-additional)
 
         if envelope.is_empty:

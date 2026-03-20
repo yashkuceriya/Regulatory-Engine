@@ -190,7 +190,7 @@ class BuildabilityAssessment(BaseModel):
     pipeline_errors: list[dict] = Field(default_factory=list)
     overall_recommendation: Optional[str] = None
     edge_cases: list[str] = Field(default_factory=list)
-    pipeline_timing: dict[str, float] = Field(default_factory=dict)
+    pipeline_timing: dict[str, int] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
