@@ -8,11 +8,13 @@ import asyncio
 import json
 import logging
 import re
+import time
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -67,6 +69,24 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
+
+
+# ---------------------------------------------------------------------------
+# Rate limiting (in-memory, per-IP)
+# ---------------------------------------------------------------------------
+_rate_limits: dict[str, list[float]] = defaultdict(list)
+_RATE_WINDOW = 60  # seconds
+_RATE_MAX_ASSESS = 10  # max /api/assess per minute per IP
+_RATE_MAX_CHAT = 20  # max /api/chat per minute per IP
+
+def _check_rate(ip: str, limit: int) -> bool:
+    now = time.time()
+    hits = _rate_limits[ip]
+    _rate_limits[ip] = [t for t in hits if now - t < _RATE_WINDOW]
+    if len(_rate_limits[ip]) >= limit:
+        return False
+    _rate_limits[ip].append(now)
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -130,13 +150,17 @@ async def health_deep():
 
 
 @app.post("/api/assess")
-async def assess(request: AssessRequest):
+async def assess(request: AssessRequest, req: Request = None):
     """
     Main endpoint: Address → BuildabilityAssessment.
 
     Returns structured findings with confidence scores, LAMC citations,
     setback geometry, and ADU feasibility — all with evidence trail.
     """
+    client_ip = req.client.host if req and req.client else "unknown"
+    if not _check_rate(client_ip, _RATE_MAX_ASSESS):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+
     addr = request.address.strip() if request.address else ""
     if len(addr) < 5 or len(addr) > 200:
         raise HTTPException(status_code=400, detail="Please provide a valid street address (5-200 characters).")
@@ -219,12 +243,16 @@ async def feedback_stats():
 
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, req: Request = None):
     """
     Conversational follow-up about assessment results.
     Returns SSE stream of Claude responses grounded in the assessment.
     Includes input validation and content guardrails.
     """
+    client_ip = req.client.host if req and req.client else "unknown"
+    if not _check_rate(f"{client_ip}:chat", _RATE_MAX_CHAT):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+
     # Input validation
     if not request.question or len(request.question.strip()) < 2:
         raise HTTPException(status_code=400, detail="Please provide a question.")

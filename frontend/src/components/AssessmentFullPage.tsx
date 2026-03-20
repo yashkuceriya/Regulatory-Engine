@@ -117,9 +117,18 @@ export default function AssessmentFullPage({ assessment, onBack }: Props) {
 
       {/* ── Executive Summary ── */}
       <Box sx={{ px: { xs: 3, md: 5 } }}>
-        <Typography sx={{ fontSize: 14, fontWeight: 500, color: alpha(P, 0.7), lineHeight: 1.6, mb: 2 }}>
+        <Typography sx={{ fontSize: 14, fontWeight: 500, color: alpha(P, 0.7), lineHeight: 1.6, mb: assessment.pipeline_errors?.length ? 1 : 2 }}>
           {summaryText}
         </Typography>
+        {assessment.pipeline_errors?.length > 0 && (
+          <Stack spacing={0.3} sx={{ mb: 2 }}>
+            {assessment.pipeline_errors.map((e, i) => (
+              <Typography key={i} sx={{ fontSize: 11, color: '#92400e', bgcolor: '#fffbeb', px: 1.5, py: 0.4, borderRadius: 1, display: 'inline-block' }}>
+                {e.step}: {e.message}
+              </Typography>
+            ))}
+          </Stack>
+        )}
       </Box>
 
       <Box sx={{ display: 'flex', maxWidth: 1440, mx: 'auto' }}>
@@ -256,8 +265,8 @@ export default function AssessmentFullPage({ assessment, onBack }: Props) {
         {/* ── Analysis Grid: Map (8col) + Sidebar (4col) ── */}
         <Box id="section-map" sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' }, gap: 3, mb: 3 }}>
           {/* Map */}
-          <Card sx={{ overflow: 'hidden', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-            <Box sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Card sx={{ overflow: 'hidden', borderRadius: 3, border: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ p: 2.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
               <Typography sx={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1, color: P }}>
                 <MapIcon sx={{ fontSize: 20, color: P }} /> Parcel Intelligence Map
               </Typography>
@@ -275,7 +284,7 @@ export default function AssessmentFullPage({ assessment, onBack }: Props) {
                 </Box>
               </Stack>
             </Box>
-            <Box sx={{ height: 420, position: 'relative' }}>
+            <Box sx={{ flex: 1, minHeight: 420, position: 'relative' }}>
               <MapPanel assessment={assessment} showParcel={showParcel} showEnvelope={showEnvelope} />
             </Box>
           </Card>

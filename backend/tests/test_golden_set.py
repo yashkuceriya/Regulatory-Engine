@@ -42,6 +42,7 @@ def _scenario_ids() -> list[str]:
     return [f"{e['scenario']}—{e['address'][:30]}" for e in GOLDEN]
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize("entry", GOLDEN, ids=_scenario_ids())
 async def test_pipeline_completes(entry: dict):
@@ -50,6 +51,7 @@ async def test_pipeline_completes(entry: dict):
     assert result is not None, f"Pipeline returned None for {entry['address']}"
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize("entry", GOLDEN, ids=_scenario_ids())
 async def test_scenario_expectations(entry: dict):
