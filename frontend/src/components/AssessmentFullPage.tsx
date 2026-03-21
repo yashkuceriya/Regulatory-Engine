@@ -19,6 +19,7 @@ import RegulatoryReasoning from './RegulatoryReasoning'
 import { AreaDonut, ConfidenceBreakdown, ConstraintRadar, PipelineTimeline, OverlayRiskGrid, MethodBreakdown } from './AssessmentCharts'
 import CoverFitAnalysis from './CoverFitAnalysis'
 import BuildingEnvelopeViz from './BuildingEnvelopeViz'
+import SiteIntelligence from './SiteIntelligence'
 import SectionNav from './SectionNav'
 import GlossaryTerm from './GlossaryTerm'
 import { useLamcChunks } from '../hooks/useAssessment'
@@ -466,6 +467,11 @@ export default function AssessmentFullPage({ assessment, onBack }: Props) {
         {/* ── 3D Building Envelope — show whenever we have findings with setback data ── */}
         <Box id="section-envelope">
           {hasEnvelopeData && <BuildingEnvelopeViz assessment={assessment} />}
+        </Box>
+
+        {/* ── Site Intelligence ── */}
+        <Box id="section-site">
+          <SiteIntelligence assessment={assessment} />
         </Box>
 
         {/* ── Cover Fit Analysis ── */}

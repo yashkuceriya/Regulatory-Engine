@@ -127,6 +127,96 @@ export function perimeterFt(coords: number[][]): number {
 }
 
 /**
+ * Lot shape analysis: frontage, depth, width-to-depth ratio, facing direction.
+ */
+export interface LotAnalysis {
+  frontageWidthFt: number     // width of the front (street-facing) edge
+  lotDepthFt: number          // average depth from front to rear
+  widthToDepthRatio: number   // frontage / depth
+  facingDirection: string     // "North", "South", "East", "West", etc.
+  facingBearing: number       // bearing in degrees (0=N)
+  southExposure: 'excellent' | 'good' | 'limited' | 'poor' // how much south-facing area
+  isNarrowLot: boolean        // frontage < 25ft
+  isDeepLot: boolean          // depth > 3x frontage
+  shapeDescription: string    // "rectangular", "irregular", "trapezoidal", etc.
+}
+
+export function analyzeLotShape(coords: number[][]): LotAnalysis | null {
+  const vertices = analyzeParcel(coords)
+  if (vertices.length < 3) return null
+
+  // Front edge = first edge (convention: first coordinate sequence starts at front-left)
+  // For LA parcels, front is typically the street-facing edge (shortest edge facing south or the street)
+  const frontEdge = vertices[0]
+  const frontageWidthFt = frontEdge.edgeLengthFt
+
+  // Lot depth = average of the two side edges
+  const sideEdges = vertices.length >= 4
+    ? [vertices[1].edgeLengthFt, vertices[vertices.length - 1].edgeLengthFt]
+    : [vertices[1].edgeLengthFt]
+  const lotDepthFt = sideEdges.reduce((a, b) => a + b, 0) / sideEdges.length
+
+  const widthToDepthRatio = lotDepthFt > 0 ? frontageWidthFt / lotDepthFt : 0
+
+  // Facing direction: bearing perpendicular to the front edge, pointing INTO the lot
+  const frontMid = midpoint(vertices[0].coord, vertices[1 % vertices.length].coord)
+  const rearIdx = Math.min(2, vertices.length - 1)
+  const rearMid = midpoint(vertices[rearIdx].coord, vertices[(rearIdx + 1) % vertices.length].coord)
+  const facingBearing = bearing(rearMid, frontMid) // direction lot faces (from rear toward front/street)
+  const facingDirection = bearingToCardinal(facingBearing)
+
+  // South exposure: how close is the rear (where ADU goes) to facing south?
+  // If lot faces north, rear faces south = excellent for ADU
+  // If lot faces south, rear faces north = poor for ADU solar
+  const rearBearing = (facingBearing + 180) % 360
+  const deviationFromSouth = Math.abs(180 - rearBearing)
+  const adjustedDev = deviationFromSouth > 180 ? 360 - deviationFromSouth : deviationFromSouth
+  const southExposure: LotAnalysis['southExposure'] =
+    adjustedDev < 30 ? 'excellent' :
+    adjustedDev < 60 ? 'good' :
+    adjustedDev < 120 ? 'limited' : 'poor'
+
+  // Shape classification
+  const angles = vertices.map(v => v.angleDeg)
+  const isRightAngled = angles.every(a => Math.abs(a - 90) < 15)
+  const edgeLengths = vertices.map(v => v.edgeLengthFt)
+  const maxEdge = Math.max(...edgeLengths)
+  const minEdge = Math.min(...edgeLengths)
+  const edgeRatio = maxEdge / (minEdge || 1)
+
+  let shapeDescription = 'irregular'
+  if (vertices.length === 4) {
+    if (isRightAngled) {
+      shapeDescription = edgeRatio < 1.3 ? 'rectangular (near-square)' : 'rectangular'
+    } else {
+      shapeDescription = 'trapezoidal'
+    }
+  } else if (vertices.length === 5) {
+    shapeDescription = 'pentagonal'
+  } else if (vertices.length === 3) {
+    shapeDescription = 'triangular'
+  }
+
+  return {
+    frontageWidthFt,
+    lotDepthFt,
+    widthToDepthRatio,
+    facingDirection,
+    facingBearing,
+    southExposure,
+    isNarrowLot: frontageWidthFt < 25,
+    isDeepLot: lotDepthFt > frontageWidthFt * 3,
+    shapeDescription,
+  }
+}
+
+function bearingToCardinal(deg: number): string {
+  const dirs = ['North', 'NE', 'East', 'SE', 'South', 'SW', 'West', 'NW']
+  const idx = Math.round(deg / 45) % 8
+  return dirs[idx]
+}
+
+/**
  * Query Mapbox Terrain-RGB for elevation at a given [lng, lat].
  * Returns elevation in feet.
  */

@@ -403,12 +403,61 @@ export default memo(function CoverFitAnalysis({ assessment, projectType, targetS
                       <Typography sx={{ fontSize: 10, color: '#7a6e65' }}>Estimated increase</Typography>
                     </Box>
                   </Box>
+
+                  {/* Extended projections */}
+                  {(() => {
+                    const vacancyRate = 0.05 // 5% vacancy
+                    const opexRate = 0.10 // 10% maintenance/insurance
+                    const netAnnual = Math.round(annualRent * (1 - vacancyRate - opexRate))
+                    const yr5 = Math.round(netAnnual * 5)
+                    const yr10 = Math.round(netAnnual * 10)
+                    const impactFeeExempt = bestUnit.sqft <= 750
+                    const estimatedImpactFees = impactFeeExempt ? 0 : Math.round(bestUnit.sqft * 12) // ~$12/sqft
+                    const propTaxIncrease = Math.round(midCost * 0.012) // ~1.2% of construction cost added to property tax
+                    return (
+                      <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(61,44,36,0.08)' }}>
+                        <Typography sx={{ fontSize: 9, fontWeight: 700, color: '#b0a69d', textTransform: 'uppercase', letterSpacing: '0.5px', mb: 1 }}>
+                          Projected Returns (Net Operating Income)
+                        </Typography>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 1.5 }}>
+                          <Box>
+                            <Typography sx={{ fontSize: 9, color: '#7a6e65' }}>Net Annual</Typography>
+                            <Typography sx={{ fontSize: 16, fontWeight: 800, color: '#16a34a' }}>${netAnnual.toLocaleString()}</Typography>
+                            <Typography sx={{ fontSize: 9, color: '#b0a69d' }}>After 5% vacancy, 10% opex</Typography>
+                          </Box>
+                          <Box>
+                            <Typography sx={{ fontSize: 9, color: '#7a6e65' }}>5-Year Total</Typography>
+                            <Typography sx={{ fontSize: 16, fontWeight: 800, color: P }}>${(yr5 / 1000).toFixed(0)}K</Typography>
+                            <Typography sx={{ fontSize: 9, color: '#b0a69d' }}>Cumulative net income</Typography>
+                          </Box>
+                          <Box>
+                            <Typography sx={{ fontSize: 9, color: '#7a6e65' }}>10-Year Total</Typography>
+                            <Typography sx={{ fontSize: 16, fontWeight: 800, color: P }}>${(yr10 / 1000).toFixed(0)}K</Typography>
+                            <Typography sx={{ fontSize: 9, color: '#b0a69d' }}>Cumulative net income</Typography>
+                          </Box>
+                          <Box>
+                            <Typography sx={{ fontSize: 9, color: '#7a6e65' }}>Add'l Prop Tax</Typography>
+                            <Typography sx={{ fontSize: 16, fontWeight: 800, color: '#92400e' }}>${(propTaxIncrease / 1000).toFixed(1)}K/yr</Typography>
+                            <Typography sx={{ fontSize: 9, color: '#b0a69d' }}>Prop 13 supplemental</Typography>
+                          </Box>
+                        </Box>
+                        {impactFeeExempt && (
+                          <Chip label="Impact Fee Exempt — ADU ≤ 750 sqft (Gov. Code §66333)" size="small"
+                            sx={{ height: 20, fontSize: '0.55rem', fontWeight: 700, bgcolor: '#dcfce7', color: '#166534', mb: 0.5 }} />
+                        )}
+                        {!impactFeeExempt && estimatedImpactFees > 0 && (
+                          <Chip label={`Est. Impact Fees: ~$${estimatedImpactFees.toLocaleString()} (${bestUnit.sqft} sqft > 750 threshold)`} size="small"
+                            sx={{ height: 20, fontSize: '0.55rem', fontWeight: 600, bgcolor: '#fef3c7', color: '#92400e', mb: 0.5 }} />
+                        )}
+                      </Box>
+                    )
+                  })()}
                 </>
               )
             })()}
             <Typography sx={{ fontSize: 9, color: '#b0a69d', mt: 2, fontStyle: 'italic' }}>
-              Rental rates from 2026 LA ADU market data by neighborhood. West LA: $3.70-5.60/sqft, Central: $2.90-4.70, Valley: $2.70-4.30, East: $2.40-3.70.
-              Property value increase based on industry average of 20-30% of build cost.
+              Rental rates from 2026 LA ADU market data by neighborhood. Net projections assume 5% vacancy, 10% operating expenses.
+              Property value increase based on industry average of 20-30% of build cost. Prop 13: ADU adds supplemental assessment on new construction value only.
             </Typography>
           </Box>
         </Card>

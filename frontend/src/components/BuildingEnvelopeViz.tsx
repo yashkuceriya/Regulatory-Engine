@@ -32,6 +32,9 @@ export default memo(function BuildingEnvelopeViz({ assessment }: Props) {
   const rear = findVal(findings, 'rear_setback') || 15
   const maxHeight = findVal(findings, 'max_height') || 33
   const maxStories = findVal(findings, 'max_stories') || 2
+  const encroachmentPlane = findings.find(f => f.finding_type === 'encroachment_plane')
+  const epStartHeight = encroachmentPlane?.value?.start_height_ft || null
+  const epAngle = encroachmentPlane?.value?.angle_degrees || null
   const lotArea = assessment.parcel?.lot_area_sqft || 7500
   const envArea = assessment.buildable_envelope?.properties?.envelope_area_sqft || 0
   const coveragePct = envArea && lotArea ? Math.round((envArea / lotArea) * 100) : 0
@@ -150,6 +153,44 @@ export default memo(function BuildingEnvelopeViz({ assessment }: Props) {
         {/* Top face */}
         <path d={toPath(envTop)} fill="rgba(34,197,94,0.15)" stroke="#22c55e" strokeWidth={1} strokeDasharray="4,2" />
 
+        {/* Encroachment plane (LAMC §12.08 C.5(a)) — angled plane starting at start_height, cutting inward at angle */}
+        {epStartHeight && epAngle && (() => {
+          const startH = epStartHeight * heightScale
+          // The plane starts at the side edges at start_height and slopes inward at epAngle degrees
+          // At the top of the envelope, the plane has cut in by: (maxHeight - startHeight) / tan(angle)
+          const riseAboveStart = maxHeight - epStartHeight
+          const cutInFt = riseAboveStart / Math.tan((epAngle * Math.PI) / 180)
+          const cutInRatio = Math.min(cutInFt / (side * 2 + 40), 0.4) // cap visual at 40%
+          const cutInPx = envW * cutInRatio
+
+          // Left side encroachment: plane from side edge at startH going inward to cutInPx at maxH
+          const epLeft = [
+            iso(-envW / 2 + envOffX, -envD / 2 + envOffY, startH),
+            iso(-envW / 2 + envOffX, envD / 2 + envOffY, startH),
+            iso(-envW / 2 + envOffX + cutInPx, envD / 2 + envOffY, maxH),
+            iso(-envW / 2 + envOffX + cutInPx, -envD / 2 + envOffY, maxH),
+          ]
+          // Right side encroachment
+          const epRight = [
+            iso(envW / 2 + envOffX, -envD / 2 + envOffY, startH),
+            iso(envW / 2 + envOffX, envD / 2 + envOffY, startH),
+            iso(envW / 2 + envOffX - cutInPx, envD / 2 + envOffY, maxH),
+            iso(envW / 2 + envOffX - cutInPx, -envD / 2 + envOffY, maxH),
+          ]
+          return (
+            <>
+              <path d={toPath(epLeft)} fill="rgba(251,191,36,0.12)" stroke="#f59e0b" strokeWidth={0.8} strokeDasharray="3,2" />
+              <path d={toPath(epRight)} fill="rgba(251,191,36,0.12)" stroke="#f59e0b" strokeWidth={0.8} strokeDasharray="3,2" />
+              {/* Label */}
+              <text x={epLeft[0].x - 6} y={(epLeft[0].y + epLeft[3].y) / 2}
+                textAnchor="end" fill="#d97706" fontSize={8} fontWeight={600} fontFamily="Inter, sans-serif"
+                transform={`rotate(-20, ${epLeft[0].x - 6}, ${(epLeft[0].y + epLeft[3].y) / 2})`}>
+                {epAngle}° plane
+              </text>
+            </>
+          )
+        })()}
+
         {/* Height dimension line */}
         <line x1={env[1].x + 15} y1={env[1].y} x2={envTop[1].x + 15} y2={envTop[1].y}
           stroke={P} strokeWidth={1} />
@@ -204,6 +245,13 @@ export default memo(function BuildingEnvelopeViz({ assessment }: Props) {
 
           <line x1={110} y1={20} x2={120} y2={20} stroke={P} strokeWidth={1.5} strokeDasharray="6,3" />
           <text x={126} y={25} fill="#7a6e65" fontSize={9} fontFamily="Inter, sans-serif">Lot Boundary</text>
+
+          {epStartHeight && (
+            <>
+              <rect x={220} y={0} width={10} height={10} fill="rgba(251,191,36,0.12)" stroke="#f59e0b" strokeWidth={0.8} strokeDasharray="3,2" />
+              <text x={236} y={9} fill="#7a6e65" fontSize={9} fontFamily="Inter, sans-serif">Encroachment Plane</text>
+            </>
+          )}
         </g>
       </svg>
     </Box>
