@@ -134,7 +134,10 @@ class Settings:
     STANDARD_CRS: str = "EPSG:4326"
 
     # CORS — comma-separated origins, or "*" for wide open (dev only)
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:5174,http://localhost:3000"
+    CORS_ORIGINS: str = os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:5173,http://localhost:5174,http://localhost:3000"
+    )
 
     # LLM
     LLM_MODEL: str = os.getenv("LLM_MODEL", "claude-sonnet-4-6")

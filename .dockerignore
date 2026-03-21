@@ -5,4 +5,9 @@ frontend/
 *.db
 __pycache__/
 node_modules/
-frontend/dist/
+.python-version
+runtime.txt
+nixpacks.toml
+pytest-cache-files-*/
+scripts/
+*.md
