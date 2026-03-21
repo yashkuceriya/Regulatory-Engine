@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Box, Typography, Tooltip, Chip, Stack } from '@mui/material'
+import { Box, Typography, Stack } from '@mui/material'
 import type { BuildabilityAssessment, RegulatoryFinding } from '../types/assessment'
+import { analyzeParcel, getOuterRing, formatDist, perimeterFt } from '../utils/geometry'
 
 interface Props {
   findings: RegulatoryFinding[]
@@ -21,9 +22,14 @@ export default function SetbackDiagram({ findings, assessment }: Props) {
   const maxHeight = findValue(findings, 'max_height')
   const rfar = findValue(findings, 'rfar')
 
-  const W = 300, H = 340
-  const pad = 50
-  const lotW = W - pad * 2, lotH = H - pad * 2
+  // Analyze real parcel geometry for dimensions
+  const coords = getOuterRing(assessment.parcel?.geometry)
+  const vertices = analyzeParcel(coords)
+  const perimeter = coords.length > 2 ? perimeterFt(coords) : 0
+
+  const W = 320, H = 380
+  const pad = 55
+  const lotW = W - pad * 2, lotH = H - pad * 2 - 30
   const scale = lotH / 120
   const fS = (front || 20) * scale
   const rS = (rear || 15) * scale
@@ -34,19 +40,48 @@ export default function SetbackDiagram({ findings, assessment }: Props) {
   const buildW = lotW - sS * 2
   const buildH = lotH - fS - rS
 
+  // Compute real edge lengths for the 4 primary edges (approximate for irregular lots)
+  const edgeLengths = vertices.length >= 4
+    ? { front: vertices[0]?.edgeLengthFt, right: vertices[1]?.edgeLengthFt, rear: vertices[2]?.edgeLengthFt, left: vertices[3]?.edgeLengthFt }
+    : { front: null, right: null, rear: null, left: null }
+  const cornerAngles = vertices.length >= 4
+    ? [vertices[0]?.angleDeg, vertices[1]?.angleDeg, vertices[2]?.angleDeg, vertices[3]?.angleDeg]
+    : []
+
+  // Scale bar: 20ft reference
+  const scaleBarFt = 20
+  const scaleBarPx = scaleBarFt * scale
+
   return (
     <Box sx={{
       p: 2.5, borderRadius: 2.5, mb: 2.5, textAlign: 'center',
       bgcolor: '#f5f0eb', border: '1px solid', borderColor: 'divider',
     }}>
       <Typography variant="overline" color="text.disabled" sx={{ display: 'block', mb: 0.5, fontSize: '0.65rem', fontWeight: 700 }}>
-        Conceptual Setback Diagram
+        Site Setback Diagram
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2, lineHeight: 1.6 }}>
-        Hover over zones for details. Not to scale.
+        Hover zones for details. Dimensions from parcel geometry.
       </Typography>
 
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', margin: '0 auto' }}>
+        {/* North arrow */}
+        <g transform={`translate(${W - 28}, 18)`}>
+          <polygon points="0,-10 4,0 0,-4 -4,0" fill="#3d2c24" />
+          <polygon points="0,10 -4,0 0,4 4,0" fill="#b0a69d" />
+          <text x="0" y="-5" textAnchor="middle" fontSize="5" fontWeight="800" fill="#fff">N</text>
+        </g>
+
+        {/* Scale bar */}
+        <g transform={`translate(12, ${H - 16})`}>
+          <line x1={0} y1={0} x2={scaleBarPx} y2={0} stroke="#3d2c24" strokeWidth={2} />
+          <line x1={0} y1={-3} x2={0} y2={3} stroke="#3d2c24" strokeWidth={1.5} />
+          <line x1={scaleBarPx} y1={-3} x2={scaleBarPx} y2={3} stroke="#3d2c24" strokeWidth={1.5} />
+          <text x={scaleBarPx / 2} y={-5} textAnchor="middle" fill="#5a4238" fontSize={8} fontWeight={600} fontFamily="Inter, sans-serif">
+            {scaleBarFt}′
+          </text>
+        </g>
+
         {/* Street */}
         <text x={W / 2} y={16} textAnchor="middle" fill="#b0a69d" fontSize={11} fontWeight={600} fontFamily="Inter, sans-serif">
           STREET
@@ -95,7 +130,7 @@ export default function SetbackDiagram({ findings, assessment }: Props) {
           />
         )}
 
-        {/* Dimension labels */}
+        {/* Setback dimension labels */}
         {front && (
           <>
             <line x1={W / 2} y1={pad} x2={W / 2} y2={buildY} stroke="#b0a69d" strokeWidth={0.5} />
@@ -110,12 +145,50 @@ export default function SetbackDiagram({ findings, assessment }: Props) {
         )}
         {side && (
           <>
-            <line x1={pad} y1={H / 2} x2={buildX} y2={H / 2} stroke="#b0a69d" strokeWidth={0.5} />
-            <DimLabel x={pad + sS / 2} y={H / 2} text={`${side}'`} active={hoveredZone === 'side'} />
-            <line x1={pad + lotW - sS} y1={H / 2} x2={pad + lotW} y2={H / 2} stroke="#b0a69d" strokeWidth={0.5} />
-            <DimLabel x={pad + lotW - sS / 2} y={H / 2} text={`${side}'`} active={hoveredZone === 'side'} />
+            <line x1={pad} y1={H / 2 - 15} x2={buildX} y2={H / 2 - 15} stroke="#b0a69d" strokeWidth={0.5} />
+            <DimLabel x={pad + sS / 2} y={H / 2 - 15} text={`${side}'`} active={hoveredZone === 'side'} />
+            <line x1={pad + lotW - sS} y1={H / 2 - 15} x2={pad + lotW} y2={H / 2 - 15} stroke="#b0a69d" strokeWidth={0.5} />
+            <DimLabel x={pad + lotW - sS / 2} y={H / 2 - 15} text={`${side}'`} active={hoveredZone === 'side'} />
           </>
         )}
+
+        {/* Real edge length labels on lot boundary */}
+        {edgeLengths.front && (
+          <text x={W / 2} y={pad - 6} textAnchor="middle" fill="#3d2c24" fontSize={9} fontWeight={700} fontFamily="Inter, sans-serif">
+            {formatDist(edgeLengths.front)}
+          </text>
+        )}
+        {edgeLengths.rear && (
+          <text x={W / 2} y={pad + lotH + 14} textAnchor="middle" fill="#3d2c24" fontSize={9} fontWeight={700} fontFamily="Inter, sans-serif">
+            {formatDist(edgeLengths.rear)}
+          </text>
+        )}
+        {edgeLengths.right && (
+          <text x={pad + lotW + 6} y={pad + lotH / 2} fill="#3d2c24" fontSize={9} fontWeight={700} fontFamily="Inter, sans-serif"
+            transform={`rotate(90, ${pad + lotW + 6}, ${pad + lotH / 2})`} textAnchor="middle">
+            {formatDist(edgeLengths.right)}
+          </text>
+        )}
+        {edgeLengths.left && (
+          <text x={pad - 8} y={pad + lotH / 2} fill="#3d2c24" fontSize={9} fontWeight={700} fontFamily="Inter, sans-serif"
+            transform={`rotate(-90, ${pad - 8}, ${pad + lotH / 2})`} textAnchor="middle">
+            {formatDist(edgeLengths.left)}
+          </text>
+        )}
+
+        {/* Corner angles */}
+        {cornerAngles.length >= 4 && cornerAngles.map((angle, i) => {
+          if (!angle || angle > 160 || angle < 10) return null
+          const cx = i === 0 || i === 3 ? pad + 14 : pad + lotW - 14
+          const cy = i === 0 || i === 1 ? pad + 14 : pad + lotH - 14
+          return (
+            <g key={i}>
+              <text x={cx} y={cy} textAnchor="middle" fill="#7a6e65" fontSize={7} fontWeight={600} fontFamily="Inter, sans-serif">
+                {Math.round(angle)}°
+              </text>
+            </g>
+          )
+        })}
 
         {/* Zone labels */}
         <text x={W / 2} y={pad + fS / 2 - 12} textAnchor="middle" fill="#3d2c24" fontSize={9} fontWeight={700} fontFamily="Inter, sans-serif">FRONT</text>
@@ -127,18 +200,16 @@ export default function SetbackDiagram({ findings, assessment }: Props) {
             <text x={W / 2} y={buildY + buildH / 2 + 14} textAnchor="middle" fill="#22c55e" fontSize={9} fontFamily="Inter, sans-serif">ENVELOPE</text>
           </>
         )}
-
-        {/* Lot label */}
-        <text x={pad + lotW + 8} y={pad + lotH / 2} fill="#3d2c24" fontSize={9} fontFamily="Inter, sans-serif" transform={`rotate(90, ${pad + lotW + 8}, ${pad + lotH / 2})`} textAnchor="middle" fontWeight={600}>LOT</text>
       </svg>
 
       {/* Stats below */}
-      <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 1.5 }}>
+      <Stack direction="row" spacing={1.2} justifyContent="center" flexWrap="wrap" sx={{ mt: 1.5 }}>
         {lotArea && <StatPill label="Lot Area" value={`${Math.round(lotArea).toLocaleString()} sqft`} />}
         {envArea && <StatPill label="Buildable" value={`${Math.round(envArea).toLocaleString()} sqft`} color="#16a34a" />}
         {coverage && <StatPill label="Coverage" value={`${coverage}%`} color="#16a34a" />}
         {maxHeight && <StatPill label="Max Height" value={`${maxHeight} ft`} />}
         {rfar && <StatPill label="RFAR" value={`${rfar}`} />}
+        {perimeter > 0 && <StatPill label="Perimeter" value={`${Math.round(perimeter).toLocaleString()}′`} />}
       </Stack>
     </Box>
   )
@@ -151,7 +222,7 @@ function DimLabel({ x, y, text, active }: { x: number; y: number; text: string; 
         fill={active ? '#f0ebe5' : '#ffffff'} stroke={active ? '#3d2c24' : '#d4c8be'} strokeWidth={active ? 1.5 : 0.5}
         style={{ transition: 'all 0.2s' }}
       />
-      <text x={x} y={y + 4} textAnchor="middle" fill={active ? '#5a4238' : '#5a4238'} fontSize={11} fontWeight={700} fontFamily="Inter, sans-serif">
+      <text x={x} y={y + 4} textAnchor="middle" fill="#5a4238" fontSize={11} fontWeight={700} fontFamily="Inter, sans-serif">
         {text}
       </text>
     </g>

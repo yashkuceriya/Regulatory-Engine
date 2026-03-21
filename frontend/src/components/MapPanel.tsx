@@ -1,9 +1,10 @@
-import { useEffect, useRef, useMemo, useCallback } from 'react'
-import { Box, Typography, Chip, Card, CardContent, Stack } from '@mui/material'
-import { Layers } from '@mui/icons-material'
+import { useEffect, useRef, useMemo, useCallback, useState } from 'react'
+import { Box, Typography, Chip, Card, CardContent, Stack, IconButton, Tooltip } from '@mui/material'
+import { Layers, Straighten, Close } from '@mui/icons-material'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { BuildabilityAssessment } from '../types/assessment'
+import { distanceFt, formatDist, formatDistDual, midpoint as geoMidpoint, analyzeParcel, getOuterRing, cornerAngle, getParcelSlope } from '../utils/geometry'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
 
@@ -20,9 +21,22 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const setbackMarkersRef = useRef<mapboxgl.Marker[]>([])
+  const dimMarkersRef = useRef<mapboxgl.Marker[]>([])
+  const measureMarkersRef = useRef<mapboxgl.Marker[]>([])
   const aduMarkerRef = useRef<mapboxgl.Marker | null>(null)
+  const [measuring, setMeasuring] = useState(false)
+  const [slopeInfo, setSlopeInfo] = useState<{ slopePct: number; minElev: number; maxElev: number; avgElev: number } | null>(null)
+  const measurePointsRef = useRef<[number, number][]>([])
   const parcelGeo = assessment.parcel?.geometry
   const envelopeGeo = assessment.buildable_envelope
+
+  // Fetch elevation/slope data
+  useEffect(() => {
+    if (!parcelGeo || !MAPBOX_TOKEN) return
+    const coords = getOuterRing(parcelGeo)
+    if (coords.length < 4) return
+    getParcelSlope(coords, MAPBOX_TOKEN).then(setSlopeInfo).catch(() => {})
+  }, [parcelGeo])
 
   // Extract setback values from assessment findings
   const setbacks = useMemo(() => {
@@ -127,10 +141,7 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
     }
   }, [assessment])
 
-  // Helper: compute midpoint of two coordinate pairs
-  const midpoint = useCallback((a: number[], b: number[]): [number, number] => {
-    return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
-  }, [])
+  const midpoint = geoMidpoint
 
   const center = useMemo(() => {
     if (!parcelGeo) return { lng: -118.25, lat: 34.05 }
@@ -260,6 +271,43 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
         } catch { /* unusual parcel shape */ }
       }
 
+      // Parcel edge dimensions & corner angles
+      if (parcelGeo) {
+        try {
+          const coords = getOuterRing(parcelGeo)
+          const vertices = analyzeParcel(coords)
+          dimMarkersRef.current.forEach(m => m.remove())
+          dimMarkersRef.current = []
+
+          // Edge length labels
+          for (const v of vertices) {
+            const nextIdx = (vertices.indexOf(v) + 1) % vertices.length
+            const next = vertices[nextIdx]
+            const mid = geoMidpoint(v.coord, next.coord)
+            const ft = v.edgeLengthFt
+            if (ft < 3) continue // skip tiny edges
+
+            const el = document.createElement('div')
+            el.innerHTML = `<span style="background:rgba(61,44,36,0.85);padding:1px 5px;border-radius:3px;font-size:9px;font-weight:600;color:#fff;white-space:nowrap">${formatDist(ft)}</span>`
+            const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+              .setLngLat(mid)
+              .addTo(map)
+            dimMarkersRef.current.push(marker)
+          }
+
+          // Corner angle labels (only for significant corners < 160°)
+          for (const v of vertices) {
+            if (v.angleDeg > 160 || v.angleDeg < 10) continue
+            const el = document.createElement('div')
+            el.innerHTML = `<span style="background:rgba(255,255,255,0.92);padding:1px 4px;border-radius:3px;font-size:8px;font-weight:700;color:#5a4238;border:1px solid rgba(61,44,36,0.2);white-space:nowrap">${Math.round(v.angleDeg)}°</span>`
+            const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+              .setLngLat(v.coord as [number, number])
+              .addTo(map)
+            dimMarkersRef.current.push(marker)
+          }
+        } catch { /* geometry analysis failed */ }
+      }
+
       // Click popup on parcel
       if (parcelGeo) {
         map.on('click', 'parcel-fill', () => {
@@ -295,11 +343,72 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
     return () => {
       setbackMarkersRef.current.forEach(m => m.remove())
       setbackMarkersRef.current = []
+      dimMarkersRef.current.forEach(m => m.remove())
+      dimMarkersRef.current = []
+      measureMarkersRef.current.forEach(m => m.remove())
+      measureMarkersRef.current = []
       aduMarkerRef.current?.remove()
       aduMarkerRef.current = null
       map.remove()
     }
   }, [center, parcelGeo, envelopeGeo, aduFootprint])
+
+  // Measurement tool
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    if (!measuring) {
+      map.getCanvas().style.cursor = ''
+      return
+    }
+    map.getCanvas().style.cursor = 'crosshair'
+    measurePointsRef.current = []
+    measureMarkersRef.current.forEach(m => m.remove())
+    measureMarkersRef.current = []
+    // Remove previous measure line
+    try { map.removeLayer('measure-line') } catch {}
+    try { map.removeSource('measure-line') } catch {}
+
+    const onClick = (e: mapboxgl.MapMouseEvent) => {
+      const pt: [number, number] = [e.lngLat.lng, e.lngLat.lat]
+      measurePointsRef.current.push(pt)
+
+      // Drop a dot marker
+      const dotEl = document.createElement('div')
+      dotEl.style.cssText = 'width:8px;height:8px;border-radius:50%;background:#dc2626;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.4)'
+      const dotMarker = new mapboxgl.Marker({ element: dotEl, anchor: 'center' }).setLngLat(pt).addTo(map)
+      measureMarkersRef.current.push(dotMarker)
+
+      if (measurePointsRef.current.length === 2) {
+        const [a, b] = measurePointsRef.current
+        const ft = distanceFt(a, b)
+        const label = formatDistDual(ft)
+
+        // Draw line
+        map.addSource('measure-line', {
+          type: 'geojson',
+          data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [a, b] }, properties: {} },
+        })
+        map.addLayer({
+          id: 'measure-line', type: 'line', source: 'measure-line',
+          paint: { 'line-color': '#dc2626', 'line-width': 2, 'line-dasharray': [4, 2] },
+        })
+
+        // Label at midpoint
+        const mid = geoMidpoint(a, b)
+        const labelEl = document.createElement('div')
+        labelEl.innerHTML = `<span style="background:#dc2626;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;color:#fff;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.3)">${label}</span>`
+        const labelMarker = new mapboxgl.Marker({ element: labelEl, anchor: 'center' }).setLngLat(mid).addTo(map)
+        measureMarkersRef.current.push(labelMarker)
+
+        // Reset for next measurement
+        measurePointsRef.current = []
+      }
+    }
+
+    map.on('click', onClick)
+    return () => { map.off('click', onClick) }
+  }, [measuring])
 
   // Toggle layer visibility
   useEffect(() => {
@@ -327,13 +436,73 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
       const el = m.getElement()
       el.style.display = labelVisible ? '' : 'none'
     })
+    // Dimension labels: visible with parcel
+    dimMarkersRef.current.forEach(m => {
+      m.getElement().style.display = showParcel ? '' : 'none'
+    })
   }, [showParcel, showEnvelope])
+
+  const clearMeasure = useCallback(() => {
+    setMeasuring(false)
+    measureMarkersRef.current.forEach(m => m.remove())
+    measureMarkersRef.current = []
+    measurePointsRef.current = []
+    const map = mapRef.current
+    if (map) {
+      try { map.removeLayer('measure-line') } catch {}
+      try { map.removeSource('measure-line') } catch {}
+    }
+  }, [])
 
   if (!MAPBOX_TOKEN) return <Fallback assessment={assessment} center={center} />
 
   return (
     <Box sx={{ height: '100%', position: 'relative' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+
+      {/* North arrow */}
+      <Box sx={{
+        position: 'absolute', top: 12, left: 12,
+        width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        bgcolor: 'rgba(255,255,255,0.92)', borderRadius: '50%', border: '1px solid rgba(229,221,213,0.6)',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+      }}>
+        <svg width="20" height="20" viewBox="0 0 20 20">
+          <polygon points="10,1 13,9 10,7 7,9" fill="#3d2c24" />
+          <polygon points="10,19 7,11 10,13 13,11" fill="#b0a69d" />
+          <text x="10" y="7" textAnchor="middle" fontSize="5" fontWeight="800" fill="#fff">N</text>
+        </svg>
+      </Box>
+
+      {/* Measure tool button */}
+      <Box sx={{ position: 'absolute', top: 12, left: 56 }}>
+        <Tooltip title={measuring ? 'Stop measuring' : 'Measure distance'}>
+          <IconButton
+            size="small"
+            onClick={() => measuring ? clearMeasure() : setMeasuring(true)}
+            sx={{
+              bgcolor: measuring ? '#dc2626' : 'rgba(255,255,255,0.92)',
+              color: measuring ? '#fff' : '#3d2c24',
+              border: '1px solid rgba(229,221,213,0.6)',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+              '&:hover': { bgcolor: measuring ? '#b91c1c' : 'rgba(255,255,255,1)' },
+              width: 36, height: 36,
+            }}
+          >
+            {measuring ? <Close sx={{ fontSize: 16 }} /> : <Straighten sx={{ fontSize: 16 }} />}
+          </IconButton>
+        </Tooltip>
+      </Box>
+
+      {measuring && (
+        <Box sx={{
+          position: 'absolute', top: 56, left: 12,
+          bgcolor: 'rgba(220,38,38,0.9)', color: '#fff', px: 1.5, py: 0.5,
+          borderRadius: 1, fontSize: '0.7rem', fontWeight: 600,
+        }}>
+          Click two points to measure
+        </Box>
+      )}
 
       {/* Compact bottom legend bar */}
       <Box sx={{
@@ -348,8 +517,23 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
           {envelopeGeo && <LegendItem color="#22c55e" label="Buildable" dashed />}
           {parcelGeo && envelopeGeo && <LegendItem color="#d97706" label="Setback" />}
           {aduFootprint && <LegendItem color="#c17855" label="ADU Placement" dashed />}
+          <LegendItem color="#3d2c24" label="Dimensions" />
         </Stack>
         <Stack direction="row" spacing={1.5} alignItems="center">
+          {slopeInfo && (
+            <Tooltip title={`Elevation: ${Math.round(slopeInfo.minElev)}–${Math.round(slopeInfo.maxElev)} ft ASL`}>
+              <Chip
+                label={`${slopeInfo.slopePct.toFixed(1)}% slope`}
+                size="small"
+                sx={{
+                  height: 16, fontSize: '0.5rem', fontWeight: 700,
+                  bgcolor: slopeInfo.slopePct > 15 ? 'rgba(220,38,38,0.1)' : 'rgba(34,197,94,0.1)',
+                  color: slopeInfo.slopePct > 15 ? '#dc2626' : '#16a34a',
+                  border: `1px solid ${slopeInfo.slopePct > 15 ? '#fca5a5' : '#86efac'}`,
+                }}
+              />
+            </Tooltip>
+          )}
           {assessment.parcel?.apn && (
             <Typography sx={{ fontSize: '0.55rem', color: '#7a6e65' }}>
               <span style={{ color: '#b0a69d' }}>APN</span> {assessment.parcel.apn}
