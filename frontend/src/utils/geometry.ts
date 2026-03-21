@@ -145,24 +145,48 @@ export function analyzeLotShape(coords: number[][]): LotAnalysis | null {
   const vertices = analyzeParcel(coords)
   if (vertices.length < 3) return null
 
-  // Front edge = first edge (convention: first coordinate sequence starts at front-left)
-  // For LA parcels, front is typically the street-facing edge (shortest edge facing south or the street)
-  const frontEdge = vertices[0]
-  const frontageWidthFt = frontEdge.edgeLengthFt
+  // Identify front edge: the edge whose midpoint has the LOWEST latitude
+  // (in LA, streets typically run east-west at the south side of lots)
+  // If multiple edges tie, pick the shorter one (frontage is usually narrower than depth)
+  let frontIdx = 0
+  let lowestLat = Infinity
+  for (let i = 0; i < vertices.length; i++) {
+    const next = vertices[(i + 1) % vertices.length]
+    const mid = midpoint(vertices[i].coord, next.coord)
+    if (mid[1] < lowestLat) {
+      lowestLat = mid[1]
+      frontIdx = i
+    }
+  }
 
-  // Lot depth = average of the two side edges
-  const sideEdges = vertices.length >= 4
-    ? [vertices[1].edgeLengthFt, vertices[vertices.length - 1].edgeLengthFt]
-    : [vertices[1].edgeLengthFt]
-  const lotDepthFt = sideEdges.reduce((a, b) => a + b, 0) / sideEdges.length
+  const frontageWidthFt = vertices[frontIdx].edgeLengthFt
+
+  // Rear edge: the edge roughly opposite (highest latitude midpoint)
+  let rearIdx = 0
+  let highestLat = -Infinity
+  for (let i = 0; i < vertices.length; i++) {
+    const next = vertices[(i + 1) % vertices.length]
+    const mid = midpoint(vertices[i].coord, next.coord)
+    if (mid[1] > highestLat) {
+      highestLat = mid[1]
+      rearIdx = i
+    }
+  }
+
+  // Side edges: everything that's not front or rear
+  const sideEdges = vertices
+    .filter((_, i) => i !== frontIdx && i !== rearIdx)
+    .map(v => v.edgeLengthFt)
+  const lotDepthFt = sideEdges.length > 0
+    ? sideEdges.reduce((a, b) => a + b, 0) / sideEdges.length
+    : vertices[rearIdx].edgeLengthFt // fallback
 
   const widthToDepthRatio = lotDepthFt > 0 ? frontageWidthFt / lotDepthFt : 0
 
-  // Facing direction: bearing perpendicular to the front edge, pointing INTO the lot
-  const frontMid = midpoint(vertices[0].coord, vertices[1 % vertices.length].coord)
-  const rearIdx = Math.min(2, vertices.length - 1)
+  // Facing direction: bearing from lot center toward front edge midpoint
+  const frontMid = midpoint(vertices[frontIdx].coord, vertices[(frontIdx + 1) % vertices.length].coord)
   const rearMid = midpoint(vertices[rearIdx].coord, vertices[(rearIdx + 1) % vertices.length].coord)
-  const facingBearing = bearing(rearMid, frontMid) // direction lot faces (from rear toward front/street)
+  const facingBearing = bearing(rearMid, frontMid)
   const facingDirection = bearingToCardinal(facingBearing)
 
   // South exposure: how close is the rear (where ADU goes) to facing south?
@@ -232,8 +256,17 @@ export async function getElevationFt(lng: number, lat: number, token: string): P
   const blob = await res.blob()
   const bitmap = await createImageBitmap(blob)
 
-  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
-  const ctx = canvas.getContext('2d')!
+  // Use OffscreenCanvas if available, fallback to regular canvas
+  let ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
+  if (typeof OffscreenCanvas !== 'undefined') {
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
+    ctx = canvas.getContext('2d')!
+  } else {
+    const canvas = document.createElement('canvas')
+    canvas.width = bitmap.width
+    canvas.height = bitmap.height
+    ctx = canvas.getContext('2d')!
+  }
   ctx.drawImage(bitmap, 0, 0)
 
   // Pixel position within the tile

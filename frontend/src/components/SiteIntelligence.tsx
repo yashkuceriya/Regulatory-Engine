@@ -1,18 +1,25 @@
-import { useMemo } from 'react'
-import { Box, Typography, Stack, Chip, Tooltip } from '@mui/material'
+import { useMemo, useEffect, useState } from 'react'
+import { Box, Typography, Stack, Chip } from '@mui/material'
 import {
   Explore, Straighten, Terrain, WbSunny, SquareFoot, Warning,
 } from '@mui/icons-material'
 import type { BuildabilityAssessment } from '../types/assessment'
-import { analyzeLotShape, getOuterRing, perimeterFt, formatDist, type LotAnalysis } from '../utils/geometry'
+import { analyzeLotShape, getOuterRing, perimeterFt, formatDist, getParcelSlope, type LotAnalysis } from '../utils/geometry'
+
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
 
 interface Props {
   assessment: BuildabilityAssessment
-  slopeInfo?: { slopePct: number; minElev: number; maxElev: number; avgElev: number } | null
 }
 
-export default function SiteIntelligence({ assessment, slopeInfo }: Props) {
+export default function SiteIntelligence({ assessment }: Props) {
   const coords = getOuterRing(assessment.parcel?.geometry)
+  const [slopeInfo, setSlopeInfo] = useState<{ slopePct: number; minElev: number; maxElev: number; avgElev: number } | null>(null)
+
+  useEffect(() => {
+    if (!MAPBOX_TOKEN || coords.length < 4) return
+    getParcelSlope(coords, MAPBOX_TOKEN).then(setSlopeInfo).catch(() => {})
+  }, [coords.length])
   const lotAnalysis = useMemo(() => analyzeLotShape(coords), [coords])
   const perimeter = useMemo(() => coords.length > 2 ? perimeterFt(coords) : 0, [coords])
 
