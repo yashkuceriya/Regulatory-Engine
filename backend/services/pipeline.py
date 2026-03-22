@@ -98,19 +98,14 @@ async def assess_address(address: str, *, target_sqft: Optional[float] = None) -
 
     # --- Step 2: City boundary check ---
     t0 = _tick()
+    inside_la = True
     try:
         jurisdiction = await check_city_boundary(lat, lon)
         timing["boundary"] = _tock(t0)
-        if not jurisdiction.inside_city_boundary:
-            assessment = BuildabilityAssessment(
-                address=address,
-                jurisdiction=jurisdiction,
-                pipeline_errors=[{
-                    "step": "boundary",
-                    "message": "Parcel is outside LA City limits. Zoning data not available.",
-                }],
-            )
-            return PipelineResult(success=True, assessment=assessment)
+        inside_la = jurisdiction.inside_city_boundary
+        if not inside_la:
+            logger.info("Outside LA City — will use statewide parcel data and state ADU rules")
+            errors.append({"step": "boundary", "message": "Outside LA City limits. Using California statewide data and state ADU regulations."})
     except Exception as e:
         timing["boundary"] = _tock(t0)
         logger.warning("Boundary check failed: %s — proceeding anyway", e)
@@ -120,12 +115,15 @@ async def assess_address(address: str, *, target_sqft: Optional[float] = None) -
     # --- Step 3: Parcel lookup ---
     t0 = _tick()
     try:
-        parcel = await lookup_parcel(lat, lon)
+        if inside_la:
+            parcel = await lookup_parcel(lat, lon)
+        else:
+            from backend.services.parcel_service import lookup_parcel_statewide
+            parcel = await lookup_parcel_statewide(lat, lon)
         timing["parcel"] = _tock(t0)
     except Exception as e:
         timing["parcel"] = _tock(t0)
         logger.warning("Parcel lookup failed: %s — continuing with degraded data", e)
-        # Create a minimal parcel so the pipeline can continue
         from backend.models.entities import ParcelObservation
         parcel = ParcelObservation(
             source_url=ENDPOINTS.PARCEL,

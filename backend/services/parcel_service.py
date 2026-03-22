@@ -118,6 +118,64 @@ def _arcgis_to_geojson(geom: dict | None) -> dict | None:
     return None
 
 
+CA_STATEWIDE_PARCELS = "https://services1.arcgis.com/jUJYIo9tSA7EHvfZ/arcgis/rest/services/CA_Statewide_Parcels_Public_view/FeatureServer/0/query"
+
+
+async def lookup_parcel_statewide(lat: float, lon: float) -> ParcelObservation:
+    """
+    Fallback parcel lookup using CA Statewide Parcels layer.
+    Works for any California address outside LA City.
+    """
+    params = {
+        "geometry": f"{lon - 0.001},{lat - 0.001},{lon + 0.001},{lat + 0.001}",
+        "geometryType": "esriGeometryEnvelope",
+        "spatialRel": "esriSpatialRelIntersects",
+        "outFields": "PARCEL_APN,SITE_ADDR,SITE_CITY,COUNTYNAME,Shape__Area",
+        "returnGeometry": "true",
+        "f": "json",
+        "inSR": "4326",
+        "outSR": "4326",
+    }
+
+    data = await arcgis_query(CA_STATEWIDE_PARCELS, params)
+    features = data.get("features", [])
+
+    if not features:
+        raise ValueError(f"No parcel found at ({lat:.6f}, {lon:.6f}) in CA statewide data.")
+
+    # Pick smallest parcel (most specific)
+    selected = min(features, key=lambda f: f.get("attributes", {}).get("Shape__Area", float("inf")))
+    props = selected.get("attributes", {})
+    geometry = _arcgis_to_geojson(selected.get("geometry"))
+
+    # Shape__Area from CA statewide layer is in CA Albers sq meters (EPSG:3310)
+    # Convert to sqft: 1 sq meter = 10.7639 sqft
+    lot_area = None
+    area_val = props.get("Shape__Area")
+    if area_val:
+        try:
+            area_sqm = float(area_val)
+            lot_area = area_sqm * 10.7639  # sq meters → sqft
+        except (ValueError, TypeError):
+            pass
+
+    addr = props.get("SITE_ADDR", "")
+    city = props.get("SITE_CITY", "")
+    situs = f"{addr}, {city}" if addr and city else addr or city or "Unknown"
+
+    observation = ParcelObservation(
+        ain="",
+        apn=str(props.get("PARCEL_APN", "")),
+        situs_full_address=situs,
+        lot_area_sqft=lot_area,
+        geometry=geometry,
+        source_url=CA_STATEWIDE_PARCELS,
+        retrieval_ts=datetime.now(tz=timezone.utc),
+    )
+    observation.compute_hash(selected)
+    return observation
+
+
 def _build_situs_address(props: dict) -> str:
     """Assemble situs address from parcel properties."""
     parts = []
