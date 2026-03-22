@@ -374,4 +374,6 @@ const DATA_SOURCES = [
   { name: 'City Planning Zoning', url: 'services5.arcgis.com', type: 'Zoning', active: true },
   { name: 'City Boundary', url: 'maps.lacity.org', type: 'Jurisdiction', active: true },
   { name: 'CP-7150 / LAMC', url: 'Local rule tables', type: 'Rules', active: true },
+  { name: 'CA Statewide Parcels', url: 'services1.arcgis.com', type: 'Parcel Data', active: true },
+  { name: 'Mapbox Geocoding', url: 'api.mapbox.com', type: 'Autocomplete', active: true },
 ]

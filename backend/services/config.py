@@ -54,39 +54,62 @@ LA_CITY = JurisdictionConfig(
     status="active",
 )
 
-# Orange County — planned (public data available)
-ORANGE_COUNTY = JurisdictionConfig(
-    name="Orange County",
+# CA Statewide — active (parcel data via CA Statewide Parcels + state ADU rules)
+CA_STATEWIDE = JurisdictionConfig(
+    name="CA Statewide",
     geocoder="https://geocoding.geo.census.gov/geocoder/locations/onelineaddress",
-    parcel="https://data-ocpw.opendata.arcgis.com/datasets/parcels/FeatureServer/0/query",
-    zoning="https://data-ocpw.opendata.arcgis.com/datasets/unincorporated-orange-county-zoning/FeatureServer/0/query",
-    supported_zones=[],
-    status="planned",
+    parcel="https://services1.arcgis.com/jUJYIo9tSA7EHvfZ/arcgis/rest/services/CA_Statewide_Parcels_Public_view/FeatureServer/0/query",
+    zoning="",
+    supported_zones=["State ADU Rules"],
+    status="active",
 )
 
-# San Diego — planned (SANDAG open data portal)
+# San Diego — active via statewide parcels + state ADU rules
 SAN_DIEGO = JurisdictionConfig(
     name="San Diego",
     geocoder="https://geocoding.geo.census.gov/geocoder/locations/onelineaddress",
-    parcel="https://sdgis-sandag.opendata.arcgis.com/datasets/parcels/FeatureServer/0/query",
-    zoning="https://sdgis-sandag.opendata.arcgis.com/datasets/zoning/FeatureServer/0/query",
-    supported_zones=[],
+    parcel="https://services1.arcgis.com/jUJYIo9tSA7EHvfZ/arcgis/rest/services/CA_Statewide_Parcels_Public_view/FeatureServer/0/query",
+    zoning="",
+    supported_zones=["State ADU Rules"],
+    status="active",
+)
+
+# Santa Monica — active via statewide parcels + state ADU rules
+SANTA_MONICA = JurisdictionConfig(
+    name="Santa Monica",
+    geocoder="https://geocoding.geo.census.gov/geocoder/locations/onelineaddress",
+    parcel="https://services1.arcgis.com/jUJYIo9tSA7EHvfZ/arcgis/rest/services/CA_Statewide_Parcels_Public_view/FeatureServer/0/query",
+    zoning="",
+    supported_zones=["State ADU Rules"],
+    status="active",
+)
+
+# Orange County — planned (local zoning not yet integrated)
+ORANGE_COUNTY = JurisdictionConfig(
+    name="Orange County",
+    geocoder="https://geocoding.geo.census.gov/geocoder/locations/onelineaddress",
+    parcel="https://services1.arcgis.com/jUJYIo9tSA7EHvfZ/arcgis/rest/services/CA_Statewide_Parcels_Public_view/FeatureServer/0/query",
+    zoning="",
+    supported_zones=["State ADU Rules"],
     status="planned",
 )
 
-# Long Beach — planned
+# Long Beach — planned (local zoning not yet integrated)
 LONG_BEACH = JurisdictionConfig(
     name="Long Beach",
     geocoder="https://geocoding.geo.census.gov/geocoder/locations/onelineaddress",
-    parcel="https://public.gis.lacounty.gov/public/rest/services/LACounty_Cache/LACounty_Parcel/MapServer/0/query",
-    zoning="",  # TBD — need to find Long Beach zoning layer
-    supported_zones=[],
+    parcel="https://services1.arcgis.com/jUJYIo9tSA7EHvfZ/arcgis/rest/services/CA_Statewide_Parcels_Public_view/FeatureServer/0/query",
+    zoning="",
+    supported_zones=["State ADU Rules"],
     status="planned",
 )
 
 # Registry — all known jurisdictions
 JURISDICTIONS: dict[str, JurisdictionConfig] = {
     "la_city": LA_CITY,
+    "ca_statewide": CA_STATEWIDE,
+    "san_diego": SAN_DIEGO,
+    "santa_monica": SANTA_MONICA,
     "orange_county": ORANGE_COUNTY,
     "san_diego": SAN_DIEGO,
     "long_beach": LONG_BEACH,
