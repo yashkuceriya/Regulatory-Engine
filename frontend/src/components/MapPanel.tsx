@@ -40,8 +40,13 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
   const [showTerrain, setShowTerrain] = useState(false)
   const [slopeInfo, setSlopeInfo] = useState<{ slopePct: number; minElev: number; maxElev: number; avgElev: number } | null>(null)
   const measurePointsRef = useRef<[number, number][]>([])
+  // Use refs for geometry to prevent map re-creation on edits
   const parcelGeo = assessment.parcel?.geometry
   const envelopeGeo = assessment.buildable_envelope
+  const initialParcelGeoRef = useRef(parcelGeo)
+  const initialEnvelopeGeoRef = useRef(envelopeGeo)
+  if (!initialParcelGeoRef.current && parcelGeo) initialParcelGeoRef.current = parcelGeo
+  if (!initialEnvelopeGeoRef.current && envelopeGeo) initialEnvelopeGeoRef.current = envelopeGeo
 
   // Fetch elevation/slope data
   useEffect(() => {
@@ -286,7 +291,8 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
       aduMarkerRef.current?.remove(); aduMarkerRef.current = null
       map.remove()
     }
-  }, [center, parcelGeo, envelopeGeo, aduFootprint])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [center.lng, center.lat])
 
   // Measurement tool — supports multiple measurements with unique IDs
   useEffect(() => {
@@ -427,8 +433,11 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
           frontage, depth,
           aduFits: aduFit ? `Cover ${aduFit.model} (${aduFit.sqft} sqft)` : null,
         })
+      })
 
-        // Notify parent so the whole page updates
+      // Only update the full page when user RELEASES the vertex (not during drag)
+      marker.on('dragend', () => {
+        const areaSqft = polygonAreaSqft(coords)
         onBoundaryEdit?.(areaSqft, [...coords])
       })
 
