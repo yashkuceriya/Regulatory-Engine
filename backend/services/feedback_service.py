@@ -16,7 +16,8 @@ import aiosqlite
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = os.environ.get("FEEDBACK_DB_PATH", "feedback.db")
+_default_db = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "feedback.db")
+DB_PATH = os.environ.get("FEEDBACK_DB_PATH", _default_db)
 _initialized = False
 _init_lock = asyncio.Lock()
 

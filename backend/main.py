@@ -9,6 +9,7 @@ import json
 import logging
 import re
 import time
+import uuid
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -18,6 +19,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.services.pipeline import assess_address
 from backend.services.config import JURISDICTIONS, SETTINGS
@@ -60,6 +62,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Request ID middleware for tracing
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        request_id = str(uuid.uuid4())[:8]
+        request.state.request_id = request_id
+        start = time.time()
+        response = await call_next(request)
+        elapsed = (time.time() - start) * 1000
+        response.headers["X-Request-ID"] = request_id
+        if request.url.path.startswith("/api/"):
+            logger.info("[%s] %s %s → %d (%.0fms)", request_id, request.method, request.url.path, response.status_code, elapsed)
+        return response
+
+app.add_middleware(RequestIDMiddleware)
+
 # CORS — driven by CORS_ORIGINS env var (comma-separated) or defaults to localhost
 _cors_origins = [o.strip() for o in SETTINGS.CORS_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
@@ -78,6 +95,7 @@ _rate_limits: dict[str, list[float]] = defaultdict(list)
 _RATE_WINDOW = 60  # seconds
 _RATE_MAX_ASSESS = 10  # max /api/assess per minute per IP
 _RATE_MAX_CHAT = 20  # max /api/chat per minute per IP
+_RATE_MAX_FEEDBACK = 30  # max /api/feedback per minute per IP
 
 def _check_rate(ip: str, limit: int) -> bool:
     now = time.time()
@@ -99,6 +117,14 @@ class AssessRequest(BaseModel):
     bedrooms: Optional[int] = None
     bathrooms: Optional[int] = None
     target_sqft: Optional[int] = None
+
+    def model_post_init(self, __context):
+        if self.bedrooms is not None and (self.bedrooms < 0 or self.bedrooms > 10):
+            raise ValueError("bedrooms must be 0-10")
+        if self.bathrooms is not None and (self.bathrooms < 0 or self.bathrooms > 10):
+            raise ValueError("bathrooms must be 0-10")
+        if self.target_sqft is not None and (self.target_sqft < 100 or self.target_sqft > 5000):
+            raise ValueError("target_sqft must be 100-5000")
 
 
 class HealthResponse(BaseModel):
@@ -145,7 +171,13 @@ async def health_deep():
                 checks[name] = f"error: {type(e).__name__}"
     checks["llm"] = "configured" if SETTINGS.ANTHROPIC_API_KEY else "not_configured"
     checks["lamc_chunks"] = f"{len(_LAMC_CHUNKS)} loaded"
-    all_ok = all(v == "ok" for k, v in checks.items() if k not in ("llm", "lamc_chunks"))
+    # Check feedback DB
+    try:
+        stats = await get_feedback_stats()
+        checks["feedback_db"] = f"ok ({stats.get('total', 0)} entries)"
+    except Exception as e:
+        checks["feedback_db"] = f"error: {type(e).__name__}"
+    all_ok = all(v.startswith("ok") for k, v in checks.items() if k not in ("llm", "lamc_chunks"))
     return {"status": "ok" if all_ok else "degraded", "checks": checks}
 
 
@@ -225,8 +257,11 @@ async def lamc_chunks(sections: Optional[str] = None):
 
 
 @app.post("/api/feedback")
-async def submit_feedback(request: FeedbackRequest):
+async def submit_feedback(request: FeedbackRequest, req: Request = None):
     """Store user feedback on individual findings."""
+    client_ip = req.client.host if req and req.client else "unknown"
+    if not _check_rate(f"{client_ip}:feedback", _RATE_MAX_FEEDBACK):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded.")
     row_id = await save_feedback(
         address=request.address,
         finding_type=request.finding_type,

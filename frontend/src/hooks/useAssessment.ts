@@ -11,19 +11,32 @@ export interface AssessmentParams {
 }
 
 export async function fetchAssessment(params: AssessmentParams): Promise<BuildabilityAssessment> {
-  const res = await fetch(`${API_BASE}/api/assess`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  })
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/api/assess`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+  } catch (e) {
+    // Network error, CORS block, or backend unreachable
+    throw new Error(
+      'Cannot reach the assessment server. Check your connection or try again.'
+    )
+  }
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: 'Unknown error' }))
-    throw new Error(
-      typeof err.detail === 'string'
-        ? err.detail
-        : err.detail?.message || 'Assessment failed'
-    )
+    let detail = `Server error (${res.status})`
+    try {
+      const err = await res.json()
+      if (typeof err.detail === 'string') detail = err.detail
+      else if (err.detail?.message) detail = err.detail.message
+    } catch {}
+
+    if (res.status === 429) detail = 'Too many requests — please wait a moment and try again.'
+    if (res.status === 504) detail = 'Assessment timed out — external data sources may be slow. Try again.'
+
+    throw new Error(detail)
   }
 
   return res.json()
@@ -39,10 +52,13 @@ export function useDemoAddresses() {
   return useQuery<DemoAddress[]>({
     queryKey: ['demo-addresses'],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/api/demo-addresses`)
-      if (!res.ok) {
-        throw new Error('Failed to load demo addresses')
+      let res: Response
+      try {
+        res = await fetch(`${API_BASE}/api/demo-addresses`)
+      } catch {
+        throw new Error('Cannot reach server')
       }
+      if (!res.ok) throw new Error('Failed to load demo addresses')
       return res.json()
     },
   })
@@ -52,12 +68,15 @@ export function useLamcChunks() {
   return useQuery<Record<string, any>>({
     queryKey: ['lamc-chunks'],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/api/lamc-chunks`)
-      if (!res.ok) {
-        throw new Error('Failed to load regulatory text')
+      let res: Response
+      try {
+        res = await fetch(`${API_BASE}/api/lamc-chunks`)
+      } catch {
+        throw new Error('Cannot reach server')
       }
+      if (!res.ok) throw new Error('Failed to load regulatory text')
       return res.json()
     },
-    staleTime: Infinity,  // LAMC text doesn't change
+    staleTime: Infinity,
   })
 }
