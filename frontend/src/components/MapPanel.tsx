@@ -327,10 +327,18 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
     } catch {}
   }, [showTerrain])
 
+  // Store original geometry ref so edits don't re-trigger the effect
+  const originalParcelGeoRef = useRef(assessment.parcel?.geometry)
+  useEffect(() => {
+    // Only update ref when NOT editing (reset when new assessment loads)
+    if (!editing) originalParcelGeoRef.current = assessment.parcel?.geometry
+  }, [assessment.parcel?.geometry, editing])
+
   // Edit mode: add draggable markers on parcel vertices
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !parcelGeo) return
+    const geo = originalParcelGeoRef.current
+    if (!map || !geo) return
 
     // Clear existing edit markers
     editMarkersRef.current.forEach(m => m.remove())
@@ -338,7 +346,7 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
 
     if (!editing) return
 
-    const coords = getOuterRing(parcelGeo)
+    const coords = getOuterRing(geo)
     if (coords.length < 4) return
 
     // Sample vertices (max 20 for performance)
@@ -399,7 +407,7 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
 
       editMarkersRef.current.push(marker)
     }
-  }, [editing, parcelGeo])
+  }, [editing])
 
   // Toggle layer visibility
   useEffect(() => {
