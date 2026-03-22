@@ -1,6 +1,6 @@
 import { useEffect, useRef, useMemo, useCallback, useState } from 'react'
 import { Box, Typography, Chip, Card, CardContent, Stack, IconButton, Tooltip } from '@mui/material'
-import { Layers, Straighten, Close, Terrain, Edit, EditOff } from '@mui/icons-material'
+import { Layers, Straighten, Close, Terrain, Edit, EditOff, RotateLeft, RotateRight, ThreeSixty } from '@mui/icons-material'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { BuildabilityAssessment } from '../types/assessment'
@@ -584,6 +584,26 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
           <IconButton size="small" onClick={() => setEditing(e => !e)}
             sx={{ ...toolBtnSx, bgcolor: editing ? '#2563eb' : 'rgba(255,255,255,0.92)', color: editing ? '#fff' : '#3d2c24', '&:hover': { bgcolor: editing ? '#1d4ed8' : 'rgba(255,255,255,1)' } }}>
             {editing ? <EditOff sx={{ fontSize: 16 }} /> : <Edit sx={{ fontSize: 16 }} />}
+          </IconButton>
+        </Tooltip>
+
+        {/* Rotation controls */}
+        <Tooltip title="Rotate left" placement="right">
+          <IconButton size="small" onClick={() => { const m = mapRef.current; if (m) m.easeTo({ bearing: m.getBearing() - 45, duration: 500 }) }}
+            sx={{ ...toolBtnSx, bgcolor: 'rgba(255,255,255,0.92)', color: '#3d2c24', '&:hover': { bgcolor: 'rgba(255,255,255,1)' } }}>
+            <RotateLeft sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Rotate right" placement="right">
+          <IconButton size="small" onClick={() => { const m = mapRef.current; if (m) m.easeTo({ bearing: m.getBearing() + 45, duration: 500 }) }}
+            sx={{ ...toolBtnSx, bgcolor: 'rgba(255,255,255,0.92)', color: '#3d2c24', '&:hover': { bgcolor: 'rgba(255,255,255,1)' } }}>
+            <RotateRight sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Reset view (top-down)" placement="right">
+          <IconButton size="small" onClick={() => { const m = mapRef.current; if (m) m.easeTo({ bearing: 0, pitch: 0, duration: 500 }) }}
+            sx={{ ...toolBtnSx, bgcolor: 'rgba(255,255,255,0.92)', color: '#3d2c24', '&:hover': { bgcolor: 'rgba(255,255,255,1)' } }}>
+            <ThreeSixty sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
       </Stack>
