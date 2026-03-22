@@ -30,6 +30,7 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
   const measureMarkersRef = useRef<mapboxgl.Marker[]>([])
   const measureCountRef = useRef(0)
   const editMarkersRef = useRef<mapboxgl.Marker[]>([])
+  const aduHandlesRef = useRef<mapboxgl.Marker[]>([])
   const aduMarkerRef = useRef<mapboxgl.Marker | null>(null)
   const [measuring, setMeasuring] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -279,7 +280,7 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
             updateAll()
           })
 
-          editMarkersRef.current.push(...cornerMarkers.map(cm => cm.marker), rotMarker)
+          aduHandlesRef.current.push(...cornerMarkers.map(cm => cm.marker), rotMarker)
         } catch {}
       }
 
@@ -376,6 +377,7 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
       dimMarkersRef.current.forEach(m => m.remove()); dimMarkersRef.current = []
       measureMarkersRef.current.forEach(m => m.remove()); measureMarkersRef.current = []
       editMarkersRef.current.forEach(m => m.remove()); editMarkersRef.current = []
+      aduHandlesRef.current.forEach(m => m.remove()); aduHandlesRef.current = []
       aduMarkerRef.current?.remove(); aduMarkerRef.current = null
       map.remove()
     }
