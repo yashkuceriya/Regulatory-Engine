@@ -157,40 +157,50 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
         } catch {}
       }
 
-      // ADU footprint — draggable to reposition, corner handles to resize
+      // ADU footprint — draggable, resizable, rotatable
       if (aduFootprint && showEnvelope) {
         try {
           map.addSource('adu-footprint', { type: 'geojson', data: aduFootprint.geojson as GeoJSON.Feature })
           map.addLayer({ id: 'adu-fill', type: 'fill', source: 'adu-footprint', paint: { 'fill-color': 'rgba(193, 120, 85, 0.3)' } })
           map.addLayer({ id: 'adu-line', type: 'line', source: 'adu-footprint', paint: { 'line-color': '#c17855', 'line-width': 2, 'line-dasharray': [4, 3] } })
 
-          // Mutable state for ADU rect
-          const aduState = {
-            minLng: aduFootprint.polygon[0][0],
-            minLat: aduFootprint.polygon[0][1],
-            maxLng: aduFootprint.polygon[1][0],
-            maxLat: aduFootprint.polygon[2][1],
+          // ADU state: center, half-size, rotation
+          const poly = aduFootprint.polygon
+          const adu = {
+            cx: (poly[0][0] + poly[1][0]) / 2,
+            cy: (poly[0][1] + poly[2][1]) / 2,
+            hw: (poly[1][0] - poly[0][0]) / 2,
+            hh: (poly[2][1] - poly[0][1]) / 2,
+            rot: 0, // radians
           }
 
+          // Rotate a point around center
+          const rotPt = (dx: number, dy: number): [number, number] => {
+            const cos = Math.cos(adu.rot), sin = Math.sin(adu.rot)
+            return [adu.cx + dx * cos - dy * sin, adu.cy + dx * sin + dy * cos]
+          }
+
+          const getCorners = (): [number, number][] => [
+            rotPt(-adu.hw, -adu.hh),
+            rotPt(adu.hw, -adu.hh),
+            rotPt(adu.hw, adu.hh),
+            rotPt(-adu.hw, adu.hh),
+            rotPt(-adu.hw, -adu.hh),
+          ]
+
           const updateAduSource = () => {
-            const poly: [number, number][] = [
-              [aduState.minLng, aduState.minLat],
-              [aduState.maxLng, aduState.minLat],
-              [aduState.maxLng, aduState.maxLat],
-              [aduState.minLng, aduState.maxLat],
-              [aduState.minLng, aduState.minLat],
-            ]
             const src = map.getSource('adu-footprint') as mapboxgl.GeoJSONSource
-            if (src) src.setData({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [poly] }, properties: {} })
+            if (src) src.setData({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [getCorners()] }, properties: {} })
           }
 
           const getAduAreaSqft = () => {
-            const w = distanceFt([aduState.minLng, aduState.minLat], [aduState.maxLng, aduState.minLat])
-            const h = distanceFt([aduState.minLng, aduState.minLat], [aduState.minLng, aduState.maxLat])
+            const corners = getCorners()
+            const w = distanceFt(corners[0], corners[1])
+            const h = distanceFt(corners[1], corners[2])
             return Math.round(w * h)
           }
 
-          // Center label — drag to move entire ADU
+          // Center label — drag to move
           const labelEl = document.createElement('div')
           labelEl.style.cursor = 'grab'
           const updateLabel = () => {
@@ -199,67 +209,77 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
           }
           updateLabel()
 
-          const centerLng = () => (aduState.minLng + aduState.maxLng) / 2
-          const centerLat = () => (aduState.minLat + aduState.maxLat) / 2
-
           const aduMarker = new mapboxgl.Marker({ element: labelEl, anchor: 'center', draggable: true })
-            .setLngLat([centerLng(), centerLat()])
+            .setLngLat([adu.cx, adu.cy])
             .addTo(map)
 
-          const halfW = () => (aduState.maxLng - aduState.minLng) / 2
-          const halfH = () => (aduState.maxLat - aduState.minLat) / 2
+          const updateAll = () => {
+            updateAduSource()
+            updateLabel()
+            aduMarker.setLngLat([adu.cx, adu.cy])
+            cornerMarkers.forEach(cm => cm.update())
+            rotMarker.setLngLat(rotPt(0, -adu.hh - 0.00015)) // above top edge
+          }
 
           aduMarker.on('drag', () => {
             const pos = aduMarker.getLngLat()
-            const hw = halfW(), hh = halfH()
-            aduState.minLng = pos.lng - hw
-            aduState.maxLng = pos.lng + hw
-            aduState.minLat = pos.lat - hh
-            aduState.maxLat = pos.lat + hh
-            updateAduSource()
-            cornerMarkers.forEach(cm => cm.update())
+            adu.cx = pos.lng; adu.cy = pos.lat
+            updateAll()
           })
           aduMarker.on('dragend', () => { onAduResize?.(getAduAreaSqft()) })
-
           aduMarkerRef.current = aduMarker
 
           // Corner resize handles
-          const corners = [
-            { name: 'sw', getLng: () => aduState.minLng, getLat: () => aduState.minLat },
-            { name: 'se', getLng: () => aduState.maxLng, getLat: () => aduState.minLat },
-            { name: 'ne', getLng: () => aduState.maxLng, getLat: () => aduState.maxLat },
-            { name: 'nw', getLng: () => aduState.minLng, getLat: () => aduState.maxLat },
+          const cornerDefs = [
+            { dx: () => -adu.hw, dy: () => -adu.hh },
+            { dx: () => adu.hw, dy: () => -adu.hh },
+            { dx: () => adu.hw, dy: () => adu.hh },
+            { dx: () => -adu.hw, dy: () => adu.hh },
           ]
 
-          const cornerMarkers = corners.map(corner => {
+          const cornerMarkers = cornerDefs.map((def, i) => {
             const el = document.createElement('div')
             el.style.cssText = 'width:10px;height:10px;background:#c17855;border:2px solid #fff;border-radius:1px;cursor:nwse-resize;box-shadow:0 1px 3px rgba(0,0,0,0.4)'
 
             const marker = new mapboxgl.Marker({ element: el, anchor: 'center', draggable: true })
-              .setLngLat([corner.getLng(), corner.getLat()])
+              .setLngLat(rotPt(def.dx(), def.dy()))
               .addTo(map)
 
             marker.on('drag', () => {
               const pos = marker.getLngLat()
-              if (corner.name.includes('w')) aduState.minLng = pos.lng
-              if (corner.name.includes('e')) aduState.maxLng = pos.lng
-              if (corner.name.includes('s')) aduState.minLat = pos.lat
-              if (corner.name.includes('n')) aduState.maxLat = pos.lat
-              updateAduSource()
-              updateLabel()
-              aduMarker.setLngLat([centerLng(), centerLat()])
-              cornerMarkers.forEach(cm => cm.update())
+              // Unrotate the dragged position to get local coords
+              const cos = Math.cos(-adu.rot), sin = Math.sin(-adu.rot)
+              const dx = pos.lng - adu.cx, dy = pos.lat - adu.cy
+              const lx = dx * cos - dy * sin
+              const ly = dx * sin + dy * cos
+              adu.hw = Math.abs(lx)
+              adu.hh = Math.abs(ly)
+              updateAll()
             })
             marker.on('dragend', () => { onAduResize?.(getAduAreaSqft()) })
 
             return {
               marker,
-              update: () => marker.setLngLat([corner.getLng(), corner.getLat()]),
+              update: () => marker.setLngLat(rotPt(def.dx(), def.dy())),
             }
           })
 
-          // Store corner markers for cleanup
-          editMarkersRef.current.push(...cornerMarkers.map(cm => cm.marker))
+          // Rotation handle — sits above the top edge
+          const rotEl = document.createElement('div')
+          rotEl.style.cssText = 'width:14px;height:14px;background:#2563eb;border:2px solid #fff;border-radius:50%;cursor:crosshair;box-shadow:0 1px 4px rgba(0,0,0,0.4)'
+          rotEl.title = 'Drag to rotate'
+
+          const rotMarker = new mapboxgl.Marker({ element: rotEl, anchor: 'center', draggable: true })
+            .setLngLat(rotPt(0, -adu.hh - 0.00015))
+            .addTo(map)
+
+          rotMarker.on('drag', () => {
+            const pos = rotMarker.getLngLat()
+            adu.rot = Math.atan2(pos.lng - adu.cx, -(pos.lat - adu.cy))
+            updateAll()
+          })
+
+          editMarkersRef.current.push(...cornerMarkers.map(cm => cm.marker), rotMarker)
         } catch {}
       }
 
