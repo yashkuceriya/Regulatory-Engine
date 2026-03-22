@@ -8,7 +8,7 @@ import {
   CheckCircle, Warning, Info, ExpandMore,
   Gavel, Straighten, Height, Home, DirectionsCar, Layers, GridView,
   Place, Shield, Architecture, Timer, TrendingUp, VerifiedUser, Security, Map as MapIcon,
-  PictureAsPdf, Description, Storage, WarningAmber, Tune,
+  PictureAsPdf, Description, Storage, WarningAmber, Tune, Share, ContentCopy,
 } from '@mui/icons-material'
 import { useReactToPrint } from 'react-to-print'
 import PrintableReport from './PrintableReport'
@@ -151,6 +151,19 @@ export default function AssessmentFullPage({ assessment, onBack }: Props) {
               <Typography sx={{ fontSize: 13, color: alpha(P, 0.6) }}>Zone: {assessment.zoning?.zoning_string || 'N/A'}</Typography>
               <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: alpha(P, 0.2) }} />
               <Typography sx={{ fontSize: 13, color: alpha(P, 0.6) }}>{assessment.zoning?.category || 'Residential'}</Typography>
+              {assessment.created_at && (
+                <>
+                  <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: alpha(P, 0.2) }} />
+                  <Typography sx={{ fontSize: 11, color: alpha(P, 0.4) }}>
+                    {new Date(assessment.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </Typography>
+                </>
+              )}
+              {assessment.pipeline_timing?.total && (
+                <Typography sx={{ fontSize: 11, color: alpha(P, 0.35) }}>
+                  ({(assessment.pipeline_timing.total / 1000).toFixed(1)}s)
+                </Typography>
+              )}
             </Stack>
           </Box>
           <Stack direction="row" spacing={1.5} flexShrink={0} alignItems="center">
@@ -160,6 +173,16 @@ export default function AssessmentFullPage({ assessment, onBack }: Props) {
               sx={{ fontSize: 12, fontWeight: 600, borderColor: alpha(P, 0.2), color: P, borderRadius: 99, px: 2, '&:hover': { borderColor: P, bgcolor: alpha(P, 0.04) } }}
             >
               Export PDF
+            </Button>
+            <Button
+              variant="outlined" size="small" startIcon={<ContentCopy sx={{ fontSize: 16 }} />}
+              onClick={() => {
+                const summary = `${assessment.address} — ${assessment.zoning?.zoning_string || ''} — Lot: ${assessment.parcel?.lot_area_sqft ? Math.round(assessment.parcel.lot_area_sqft).toLocaleString() + ' sqft' : 'N/A'} — ${assessment.assessments.map(a => `${a.building_type}: ${a.verdict}`).join(', ')}`
+                navigator.clipboard.writeText(summary).catch(() => {})
+              }}
+              sx={{ fontSize: 12, fontWeight: 600, borderColor: alpha(P, 0.2), color: P, borderRadius: 99, px: 2, '&:hover': { borderColor: P, bgcolor: alpha(P, 0.04) } }}
+            >
+              Copy Summary
             </Button>
             {assessment.assessments.map((item) => (
               <Box key={item.building_type} sx={{

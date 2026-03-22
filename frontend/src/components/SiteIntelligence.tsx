@@ -130,7 +130,7 @@ function InfoCard({ icon, label, value, detail, chipColor }: {
 }) {
   return (
     <Box sx={{
-      flex: '1 1 140px', minWidth: 140, p: 1.5, borderRadius: 2,
+      flex: '1 1 120px', minWidth: 110, p: 1.5, borderRadius: 2,
       bgcolor: '#fff', border: '1px solid #e5ddd5',
       transition: 'border-color 0.15s', '&:hover': { borderColor: '#3d2c24' },
     }}>
