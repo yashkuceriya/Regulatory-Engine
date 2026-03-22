@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Box, Typography, Card, CardContent, Stack, Chip, Tabs, Tab,
   LinearProgress, Collapse, Tooltip, Button, useTheme, alpha,
@@ -43,7 +43,7 @@ const FINDING_ICONS: Record<string, any> = {
 
 interface Props { assessment: BuildabilityAssessment; onBack?: () => void }
 
-export default function AssessmentFullPage({ assessment, onBack }: Props) {
+export default function AssessmentFullPage({ assessment: originalAssessment, onBack }: Props) {
   const [tab, setTab] = useState(0)
   const [showParcel, setShowParcel] = useState(true)
   const [showEnvelope, setShowEnvelope] = useState(true)
@@ -51,11 +51,45 @@ export default function AssessmentFullPage({ assessment, onBack }: Props) {
   const [targetSqft, setTargetSqft] = useState<number>(0)
   const [targetBeds, setTargetBeds] = useState<number>(1)
   const [inputsOpen, setInputsOpen] = useState(true)
+  const [editedAssessment, setEditedAssessment] = useState<BuildabilityAssessment | null>(null)
   const printRef = useRef<HTMLDivElement>(null)
   const handlePrint = useReactToPrint({ contentRef: printRef })
   const theme = useTheme()
   const P = theme.palette.primary.main
   const { data: lamcChunks, isLoading: lamcLoading, isError: lamcError } = useLamcChunks()
+
+  // Use edited assessment if boundary was modified, otherwise original
+  const assessment = editedAssessment || originalAssessment
+
+  // Handle boundary edit from MapPanel
+  const handleBoundaryEdit = useCallback((newAreaSqft: number, newCoords: number[][]) => {
+    const modified = JSON.parse(JSON.stringify(originalAssessment)) as BuildabilityAssessment
+    if (modified.parcel) {
+      modified.parcel.lot_area_sqft = newAreaSqft
+      modified.parcel.geometry = { type: 'Polygon', coordinates: [newCoords] }
+    }
+    // Recalculate envelope area using same coverage ratio
+    if (modified.buildable_envelope?.properties) {
+      const origLot = originalAssessment.parcel?.lot_area_sqft || 1
+      const origEnv = originalAssessment.buildable_envelope?.properties?.envelope_area_sqft || 0
+      const ratio = origEnv / origLot
+      modified.buildable_envelope.properties.envelope_area_sqft = Math.round(newAreaSqft * ratio)
+      modified.buildable_envelope.properties.parcel_area_sqft = newAreaSqft
+      modified.buildable_envelope.properties.coverage_pct = Math.round(ratio * 100)
+    }
+    // Update max_floor_area finding
+    for (const bta of modified.assessments) {
+      for (const f of bta.findings) {
+        if (f.finding_type === 'max_floor_area' && typeof f.value === 'number') {
+          const rfar = bta.findings.find(ff => ff.finding_type === 'rfar')
+          const farValue = typeof rfar?.value === 'number' ? rfar.value : 0.45
+          f.value = Math.round(newAreaSqft * farValue * 10) / 10
+        }
+      }
+    }
+    setEditedAssessment(modified)
+  }, [originalAssessment])
+
   const tabs = assessment.assessments.map(a => a.building_type)
   const allFindings = assessment.assessments.flatMap(a => a.findings)
   const reviewCount = allFindings.filter(f => f.method === 'not_evaluated').length
@@ -151,6 +185,12 @@ export default function AssessmentFullPage({ assessment, onBack }: Props) {
               <Typography sx={{ fontSize: 13, color: alpha(P, 0.6) }}>Zone: {assessment.zoning?.zoning_string || 'N/A'}</Typography>
               <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: alpha(P, 0.2) }} />
               <Typography sx={{ fontSize: 13, color: alpha(P, 0.6) }}>{assessment.zoning?.category || 'Residential'}</Typography>
+              {editedAssessment && (
+                <>
+                  <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: '#2563eb' }} />
+                  <Chip label="Boundary Modified" size="small" sx={{ height: 18, fontSize: '0.5rem', fontWeight: 700, bgcolor: '#dbeafe', color: '#1d4ed8' }} />
+                </>
+              )}
               {assessment.created_at && (
                 <>
                   <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: alpha(P, 0.2) }} />
@@ -309,7 +349,7 @@ export default function AssessmentFullPage({ assessment, onBack }: Props) {
               </Stack>
             </Box>
             <Box sx={{ flex: 1, minHeight: 420, position: 'relative' }}>
-              <MapPanel assessment={assessment} showParcel={showParcel} showEnvelope={showEnvelope} />
+              <MapPanel assessment={assessment} showParcel={showParcel} showEnvelope={showEnvelope} onBoundaryEdit={handleBoundaryEdit} />
             </Box>
           </Card>
 

@@ -14,9 +14,14 @@ const COVER_UNITS = [
   { model: 'Custom Build', sqft: 1200, minBuildable: 1500, minLotSqft: 7000 },
 ]
 
-interface Props { assessment: BuildabilityAssessment; showParcel?: boolean; showEnvelope?: boolean }
+interface Props {
+  assessment: BuildabilityAssessment
+  showParcel?: boolean
+  showEnvelope?: boolean
+  onBoundaryEdit?: (newAreaSqft: number, newCoords: number[][]) => void
+}
 
-export default function MapPanel({ assessment, showParcel = true, showEnvelope = true }: Props) {
+export default function MapPanel({ assessment, showParcel = true, showEnvelope = true, onBoundaryEdit }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const setbackMarkersRef = useRef<mapboxgl.Marker[]>([])
@@ -387,6 +392,9 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
           frontage, depth,
           aduFits: aduFit ? `Cover ${aduFit.model} (${aduFit.sqft} sqft)` : null,
         })
+
+        // Notify parent so the whole page updates
+        onBoundaryEdit?.(areaSqft, [...coords])
       })
 
       editMarkersRef.current.push(marker)
