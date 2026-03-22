@@ -441,21 +441,33 @@ function LandingPage({ demoAddresses, demoError, onOpenMapView, onOpenWizard, on
     <Box sx={{ flex: 1, display: 'flex', bgcolor: '#f5f0eb' }}>
       {/* Left column */}
       <Box sx={{ flex: 1, p: { xs: 3, md: '36px 44px' }, maxWidth: 640, overflowY: 'auto' }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 3.5 }}>
-          <Box>
-            <Typography sx={{ fontSize: 22, fontWeight: 800, color: '#3d2c24', mb: 0.3, letterSpacing: '-0.3px' }}>Property Search</Typography>
-            <Typography sx={{ fontSize: 13, color: '#7a6e65' }}>
-              Analyze regulatory constraints by LA street address.
-            </Typography>
-          </Box>
-          <Button
-            variant="contained" onClick={onOpenWizard}
-            startIcon={<Architecture sx={{ fontSize: 16 }} />}
-            sx={{ fontSize: 12, px: 2.5, py: 1, borderRadius: 2, flexShrink: 0 }}
-          >
-            New Assessment
-          </Button>
-        </Stack>
+        {/* Hero */}
+        <Box sx={{ mb: 4 }}>
+          <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '1.5px', mb: 1 }}>
+            Regulatory Intelligence
+          </Typography>
+          <Typography sx={{ fontSize: 28, fontWeight: 900, color: '#3d2c24', letterSpacing: '-0.5px', lineHeight: 1.15, mb: 1 }}>
+            What can you build<br />on this lot?
+          </Typography>
+          <Typography sx={{ fontSize: 14, color: '#7a6e65', lineHeight: 1.6, mb: 2.5, maxWidth: 440 }}>
+            Instant zoning analysis, setback calculations, ADU feasibility, and buildable envelope — with LAMC citations and evidence trail.
+          </Typography>
+          <Stack direction="row" spacing={1.5}>
+            <Button
+              variant="contained" onClick={onOpenWizard}
+              startIcon={<Architecture sx={{ fontSize: 16 }} />}
+              sx={{ fontSize: 12, px: 2.5, py: 1, borderRadius: 2 }}
+            >
+              New Assessment
+            </Button>
+            <Button
+              variant="outlined" onClick={onOpenMapView}
+              sx={{ fontSize: 12, px: 2.5, py: 1, borderRadius: 2, borderColor: '#e5ddd5', color: '#5a4238' }}
+            >
+              Explore Map
+            </Button>
+          </Stack>
+        </Box>
 
         {demoError && (
           <Alert severity="warning" sx={{ mb: 2 }}>

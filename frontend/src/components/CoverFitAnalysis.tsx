@@ -14,7 +14,7 @@
  */
 
 import { memo } from 'react'
-import { Box, Typography, Stack, Chip, LinearProgress, Card, CardContent, useTheme } from '@mui/material'
+import { Box, Typography, Stack, Chip, LinearProgress, Card, CardContent, Button, useTheme } from '@mui/material'
 import {
   CheckCircle, Warning, Schedule, AttachMoney, Home, Cottage,
   Architecture, Checklist, TrendingUp, Speed, Verified, Engineering,
@@ -530,6 +530,48 @@ export default memo(function CoverFitAnalysis({ assessment, projectType, targetS
               </Stack>
             ))}
           </Box>
+        </CardContent>
+      </Card>
+
+      {/* ── Next Step CTA ── */}
+      <Card sx={{
+        borderRadius: 3, overflow: 'hidden', mb: 3,
+        background: `linear-gradient(135deg, ${P} 0%, #5a4238 100%)`,
+      }}>
+        <CardContent sx={{ p: 3, textAlign: 'center' }}>
+          <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#fff', mb: 1 }}>
+            Ready to build?
+          </Typography>
+          <Typography sx={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', mb: 2.5, maxWidth: 400, mx: 'auto', lineHeight: 1.6 }}>
+            This assessment shows your lot {bestUnit ? `supports a Cover ${bestUnit.model}` : 'may support an ADU'}.
+            Get a detailed quote and construction timeline from Cover.
+          </Typography>
+          <Stack direction="row" spacing={1.5} justifyContent="center">
+            <Button
+              variant="contained"
+              href="https://www.cover.build"
+              target="_blank"
+              sx={{
+                bgcolor: '#fff', color: P, fontWeight: 700, fontSize: 13,
+                borderRadius: 99, px: 3, py: 1,
+                '&:hover': { bgcolor: '#f0ebe5' },
+              }}
+            >
+              Get a Quote
+            </Button>
+            <Button
+              variant="outlined"
+              href="https://www.cover.build"
+              target="_blank"
+              sx={{
+                borderColor: 'rgba(255,255,255,0.3)', color: '#fff', fontWeight: 600, fontSize: 13,
+                borderRadius: 99, px: 3, py: 1,
+                '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' },
+              }}
+            >
+              Learn More
+            </Button>
+          </Stack>
         </CardContent>
       </Card>
     </Box>
