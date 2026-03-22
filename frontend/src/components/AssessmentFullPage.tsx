@@ -90,6 +90,28 @@ export default function AssessmentFullPage({ assessment: originalAssessment, onB
     setEditedAssessment(modified)
   }, [originalAssessment])
 
+  // Handle ADU resize from MapPanel
+  const handleAduResize = useCallback((aduSqft: number) => {
+    const base = editedAssessment || originalAssessment
+    const modified = JSON.parse(JSON.stringify(base)) as BuildabilityAssessment
+    for (const bta of modified.assessments) {
+      for (const f of bta.findings) {
+        if (f.finding_type === 'adu_size_guarantee' && typeof f.value === 'number') {
+          f.value = aduSqft
+        }
+        if (f.finding_type === 'adu_impact_fee_exempt') {
+          f.value = aduSqft <= 750
+          f.method = 'calculation'
+          f.confidence = 0.9
+          f.reason = aduSqft <= 750
+            ? `ADU ${aduSqft} sqft ≤ 750 sqft threshold — exempt`
+            : `ADU ${aduSqft} sqft > 750 sqft threshold — fees apply`
+        }
+      }
+    }
+    setEditedAssessment(modified)
+  }, [originalAssessment, editedAssessment])
+
   const tabs = assessment.assessments.map(a => a.building_type)
   const allFindings = assessment.assessments.flatMap(a => a.findings)
   const reviewCount = allFindings.filter(f => f.method === 'not_evaluated').length
@@ -349,7 +371,7 @@ export default function AssessmentFullPage({ assessment: originalAssessment, onB
               </Stack>
             </Box>
             <Box sx={{ flex: 1, minHeight: 420, position: 'relative' }}>
-              <MapPanel assessment={assessment} showParcel={showParcel} showEnvelope={showEnvelope} onBoundaryEdit={handleBoundaryEdit} />
+              <MapPanel assessment={assessment} showParcel={showParcel} showEnvelope={showEnvelope} onBoundaryEdit={handleBoundaryEdit} onAduResize={handleAduResize} />
             </Box>
           </Card>
 

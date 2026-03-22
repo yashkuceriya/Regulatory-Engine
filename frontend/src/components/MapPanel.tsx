@@ -19,9 +19,10 @@ interface Props {
   showParcel?: boolean
   showEnvelope?: boolean
   onBoundaryEdit?: (newAreaSqft: number, newCoords: number[][]) => void
+  onAduResize?: (aduSqft: number) => void
 }
 
-export default function MapPanel({ assessment, showParcel = true, showEnvelope = true, onBoundaryEdit }: Props) {
+export default function MapPanel({ assessment, showParcel = true, showEnvelope = true, onBoundaryEdit, onAduResize }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const setbackMarkersRef = useRef<mapboxgl.Marker[]>([])
@@ -216,9 +217,9 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
             aduState.minLat = pos.lat - hh
             aduState.maxLat = pos.lat + hh
             updateAduSource()
-            // Move corner handles
             cornerMarkers.forEach(cm => cm.update())
           })
+          aduMarker.on('dragend', () => { onAduResize?.(getAduAreaSqft()) })
 
           aduMarkerRef.current = aduMarker
 
@@ -246,11 +247,10 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
               if (corner.name.includes('n')) aduState.maxLat = pos.lat
               updateAduSource()
               updateLabel()
-              // Move center marker
               aduMarker.setLngLat([centerLng(), centerLat()])
-              // Move other corners
               cornerMarkers.forEach(cm => cm.update())
             })
+            marker.on('dragend', () => { onAduResize?.(getAduAreaSqft()) })
 
             return {
               marker,
