@@ -600,10 +600,16 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
             <RotateRight sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Reset view (top-down)" placement="right">
+        <Tooltip title="Top-down view" placement="right">
           <IconButton size="small" onClick={() => { const m = mapRef.current; if (m) m.easeTo({ bearing: 0, pitch: 0, duration: 500 }) }}
             sx={{ ...toolBtnSx, bgcolor: 'rgba(255,255,255,0.92)', color: '#3d2c24', '&:hover': { bgcolor: 'rgba(255,255,255,1)' } }}>
             <ThreeSixty sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="3D perspective view" placement="right">
+          <IconButton size="small" onClick={() => { const m = mapRef.current; if (m) m.easeTo({ bearing: 0, pitch: 45, duration: 500 }) }}
+            sx={{ ...toolBtnSx, bgcolor: 'rgba(255,255,255,0.92)', color: '#3d2c24', '&:hover': { bgcolor: 'rgba(255,255,255,1)' } }}>
+            <Layers sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
       </Stack>
