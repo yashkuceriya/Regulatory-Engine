@@ -151,15 +151,42 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
         } catch {}
       }
 
-      // ADU footprint
+      // ADU footprint — draggable to reposition on lot
       if (aduFootprint && showEnvelope) {
         try {
           map.addSource('adu-footprint', { type: 'geojson', data: aduFootprint.geojson as GeoJSON.Feature })
           map.addLayer({ id: 'adu-fill', type: 'fill', source: 'adu-footprint', paint: { 'fill-color': 'rgba(193, 120, 85, 0.3)' } })
           map.addLayer({ id: 'adu-line', type: 'line', source: 'adu-footprint', paint: { 'line-color': '#c17855', 'line-width': 2, 'line-dasharray': [4, 3] } })
+
           const labelEl = document.createElement('div')
-          labelEl.innerHTML = `<span style="background:rgba(193,120,85,0.92);padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;color:#fff;white-space:nowrap">${aduFootprint.label}</span>`
-          aduMarkerRef.current = new mapboxgl.Marker({ element: labelEl, anchor: 'center' }).setLngLat(aduFootprint.center).addTo(map)
+          labelEl.style.cursor = 'grab'
+          labelEl.innerHTML = `<span style="background:rgba(193,120,85,0.92);padding:3px 10px;border-radius:4px;font-size:10px;font-weight:700;color:#fff;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.2)">${aduFootprint.label} ✥</span>`
+
+          const aduMarker = new mapboxgl.Marker({ element: labelEl, anchor: 'center', draggable: true })
+            .setLngLat(aduFootprint.center)
+            .addTo(map)
+
+          // Compute ADU half-widths for repositioning the rectangle
+          const aduPoly = aduFootprint.polygon
+          const aduHalfW = (aduPoly[1][0] - aduPoly[0][0]) / 2
+          const aduHalfH = (aduPoly[2][1] - aduPoly[0][1]) / 2
+
+          aduMarker.on('drag', () => {
+            const pos = aduMarker.getLngLat()
+            const newPoly: [number, number][] = [
+              [pos.lng - aduHalfW, pos.lat - aduHalfH],
+              [pos.lng + aduHalfW, pos.lat - aduHalfH],
+              [pos.lng + aduHalfW, pos.lat + aduHalfH],
+              [pos.lng - aduHalfW, pos.lat + aduHalfH],
+              [pos.lng - aduHalfW, pos.lat - aduHalfH],
+            ]
+            const src = map.getSource('adu-footprint') as mapboxgl.GeoJSONSource
+            if (src) {
+              src.setData({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [newPoly] }, properties: {} })
+            }
+          })
+
+          aduMarkerRef.current = aduMarker
         } catch {}
       }
 
