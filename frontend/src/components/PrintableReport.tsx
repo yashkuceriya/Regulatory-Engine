@@ -95,9 +95,15 @@ const PrintableReport = forwardRef<HTMLDivElement, Props>(({ assessment }, ref) 
       <Typography sx={{ fontSize: 20, fontWeight: 900, color: P, mb: 0.5 }}>
         {assessment.address}
       </Typography>
-      <Typography sx={{ fontSize: 11, color: MUTED, mb: 2 }}>
+      <Typography sx={{ fontSize: 11, color: MUTED, mb: 0.5 }}>
         APN {assessment.parcel?.apn || 'N/A'} · Zone {zone} · {assessment.zoning?.category || 'Residential'}
       </Typography>
+      {assessment.created_at && (
+        <Typography sx={{ fontSize: 9, color: LIGHT, mb: 2 }}>
+          Generated {new Date(assessment.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          {assessment.pipeline_timing?.total ? ` · ${(assessment.pipeline_timing.total / 1000).toFixed(1)}s pipeline` : ''}
+        </Typography>
+      )}
 
       {/* ── Key Metrics ── */}
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1, mb: 3 }}>
@@ -192,6 +198,76 @@ const PrintableReport = forwardRef<HTMLDivElement, Props>(({ assessment }, ref) 
           </Box>
         )
       })}
+
+      {/* ── Setback Summary + ADU + Financials ── */}
+      {(() => {
+        const front = allFindings.find(f => f.finding_type === 'front_setback' && typeof f.value === 'number')
+        const side = allFindings.find(f => f.finding_type === 'interior_side_setback' && typeof f.value === 'number')
+        const rear = allFindings.find(f => f.finding_type === 'rear_setback' && typeof f.value === 'number')
+        const maxH = allFindings.find(f => f.finding_type === 'max_height' && typeof f.value === 'number')
+        const stories = allFindings.find(f => f.finding_type === 'max_stories' && typeof f.value === 'number')
+        const rfar = allFindings.find(f => f.finding_type === 'rfar' && typeof f.value === 'number')
+        const aduEligible = allFindings.find(f => f.finding_type === 'adu_eligibility')
+        const aduHeight = allFindings.find(f => f.finding_type === 'adu_max_height' && typeof f.value === 'number')
+
+        // Cover unit recommendation
+        const effectiveB = envArea || (lotArea ? lotArea * 0.55 : 0)
+        const coverUnits = [
+          { model: 'S1', sqft: 580, minB: 700, minLot: 3500, cost: '$354K–$369K' },
+          { model: 'S2', sqft: 800, minB: 1000, minLot: 5000, cost: '$487K+' },
+          { model: 'Custom', sqft: 1200, minB: 1500, minLot: 7000, cost: '$500K+' },
+        ]
+        const fittingUnits = coverUnits.filter(u => effectiveB >= u.minB && (lotArea || 0) >= u.minLot)
+        const bestUnit = fittingUnits[fittingUnits.length - 1]
+
+        // Rental estimate
+        const rentalRate = 3.5 // LA average $/sqft/month
+        const monthlyRent = bestUnit ? Math.round(bestUnit.sqft * rentalRate) : null
+
+        return (
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 3, pageBreakInside: 'avoid' }}>
+            {/* Left: Setbacks */}
+            <Box>
+              <SectionHead label="Setback & Height Summary" />
+              <Box sx={{ border: `1px solid ${BORDER}`, borderRadius: 1, overflow: 'hidden' }}>
+                {[
+                  { label: 'Front Setback', value: front ? `${front.value} ft` : '—' },
+                  { label: 'Side Setback', value: side ? `${side.value} ft` : '—' },
+                  { label: 'Rear Setback', value: rear ? `${rear.value} ft` : '—' },
+                  { label: 'Max Height', value: maxH ? `${maxH.value} ft` : '—' },
+                  { label: 'Max Stories', value: stories ? `${stories.value}` : '—' },
+                  { label: 'FAR', value: rfar ? `${rfar.value}` : '—' },
+                ].map((row, i) => (
+                  <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', px: 1.5, py: 0.5, borderTop: i > 0 ? `1px solid ${BORDER}` : 'none' }}>
+                    <Typography sx={{ fontSize: 10, color: MUTED }}>{row.label}</Typography>
+                    <Typography sx={{ fontSize: 11, fontWeight: 700, color: P }}>{row.value}</Typography>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+
+            {/* Right: ADU + Financials */}
+            <Box>
+              <SectionHead label="ADU & Investment" />
+              <Box sx={{ border: `1px solid ${BORDER}`, borderRadius: 1, overflow: 'hidden' }}>
+                {[
+                  { label: 'ADU Eligible', value: aduEligible?.value === true ? 'Yes' : aduEligible?.value === false ? 'No' : '—' },
+                  { label: 'ADU Max Height', value: aduHeight ? `${aduHeight.value} ft` : '—' },
+                  { label: 'Recommended Unit', value: bestUnit ? `Cover ${bestUnit.model} (${bestUnit.sqft} sqft)` : '—' },
+                  { label: 'Est. Build Cost', value: bestUnit?.cost || '—' },
+                  { label: 'Est. Monthly Rent', value: monthlyRent ? `$${monthlyRent.toLocaleString()}/mo` : '—' },
+                  { label: 'Est. Annual Income', value: monthlyRent ? `$${(monthlyRent * 12).toLocaleString()}/yr` : '—' },
+                ].map((row, i) => (
+                  <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', px: 1.5, py: 0.5, borderTop: i > 0 ? `1px solid ${BORDER}` : 'none' }}>
+                    <Typography sx={{ fontSize: 10, color: MUTED }}>{row.label}</Typography>
+                    <Typography sx={{ fontSize: 11, fontWeight: 700, color: i >= 4 ? '#16a34a' : P }}>{row.value}</Typography>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          </Box>
+        )
+      })()}
 
       {/* ── Overlay Screening ── */}
       <SectionHead label="Overlay Screening" />
