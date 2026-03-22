@@ -31,6 +31,15 @@ from .assessment import assemble_assessment
 
 logger = logging.getLogger(__name__)
 
+# Simple TTL cache for assessment results (avoids re-hitting GIS APIs for same address)
+_cache: dict[str, tuple[float, PipelineResult]] = {}
+_CACHE_TTL = 3600  # 1 hour
+_CACHE_MAX = 100   # max cached assessments
+
+
+def _cache_key(address: str, target_sqft: Optional[float]) -> str:
+    return f"{address.strip().lower()}|{target_sqft or ''}"
+
 
 def _tick() -> float:
     """Return a monotonic timestamp for timing."""
@@ -57,6 +66,16 @@ async def assess_address(address: str, *, target_sqft: Optional[float] = None) -
     8. Run ADU engine → ADU findings
     9. Assemble → BuildabilityAssessment
     """
+    # Check cache first
+    ck = _cache_key(address, target_sqft)
+    if ck in _cache:
+        cached_time, cached_result = _cache[ck]
+        if time.monotonic() - cached_time < _CACHE_TTL:
+            logger.info("Cache hit for: %s", address)
+            return cached_result
+        else:
+            del _cache[ck]
+
     pipeline_start = _tick()
     errors: list[dict] = []
     timing: dict[str, int] = {}
@@ -247,7 +266,15 @@ async def assess_address(address: str, *, target_sqft: Optional[float] = None) -
         ", ".join(f"{k}={v}ms" for k, v in timing.items() if k != "total"),
     )
 
-    return PipelineResult(success=True, assessment=assessment)
+    result = PipelineResult(success=True, assessment=assessment)
+
+    # Store in cache (evict oldest if at capacity)
+    if len(_cache) >= _CACHE_MAX:
+        oldest = min(_cache, key=lambda k: _cache[k][0])
+        del _cache[oldest]
+    _cache[ck] = (time.monotonic(), result)
+
+    return result
 
 
 def _default_setbacks_for_zone(zone) -> Optional[dict]:

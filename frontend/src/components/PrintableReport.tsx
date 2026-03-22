@@ -1,6 +1,7 @@
-import { forwardRef } from 'react'
+import { forwardRef, useMemo } from 'react'
 import { Box, Typography, Stack, Divider } from '@mui/material'
 import type { BuildabilityAssessment } from '../types/assessment'
+import { analyzeLotShape, getOuterRing, perimeterFt, sqftToSqm, sqftToAcres } from '../utils/geometry'
 
 const P = '#3d2c24'
 const MUTED = '#7a6e65'
@@ -100,12 +101,29 @@ const PrintableReport = forwardRef<HTMLDivElement, Props>(({ assessment }, ref) 
 
       {/* ── Key Metrics ── */}
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1, mb: 3 }}>
-        <MetricBox label="Lot Area" value={lotArea ? `${Math.round(lotArea).toLocaleString()}` : 'N/A'} unit="sf" />
-        <MetricBox label="Buildable" value={envArea ? `${Math.round(envArea).toLocaleString()}` : 'N/A'} unit="sf" />
+        <MetricBox label="Lot Area" value={lotArea ? `${Math.round(lotArea).toLocaleString()}` : 'N/A'} unit={lotArea ? `sf · ${Math.round(sqftToSqm(lotArea))} m²` : 'sf'} />
+        <MetricBox label="Buildable" value={envArea ? `${Math.round(envArea).toLocaleString()}` : 'N/A'} unit={envArea ? `sf · ${Math.round(sqftToSqm(envArea))} m²` : 'sf'} />
         <MetricBox label="Coverage" value={`${coveragePct}`} unit="%" />
         <MetricBox label="Confidence" value={`${overallConf}`} unit="%" highlight />
         <MetricBox label="Findings" value={`${deterministicCount}/${allFindings.length}`} unit="cited" />
       </Box>
+
+      {/* ── Site Intelligence ── */}
+      {(() => {
+        const coords = getOuterRing(assessment.parcel?.geometry)
+        const lotInfo = analyzeLotShape(coords)
+        const perimeter = coords.length > 2 ? perimeterFt(coords) : 0
+        if (!lotInfo) return null
+        return (
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1, mb: 3 }}>
+            <MetricBox label="Frontage" value={`${Math.round(lotInfo.frontageWidthFt)}`} unit="ft" />
+            <MetricBox label="Depth" value={`${Math.round(lotInfo.lotDepthFt)}`} unit="ft" />
+            <MetricBox label="Facing" value={lotInfo.facingDirection} />
+            <MetricBox label="Shape" value={lotInfo.shapeDescription.split(' ')[0]} />
+            <MetricBox label="Perimeter" value={`${Math.round(perimeter)}`} unit="ft" />
+          </Box>
+        )
+      })()}
 
       {/* ── Verdicts ── */}
       <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
