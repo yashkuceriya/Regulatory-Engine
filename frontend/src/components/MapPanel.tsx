@@ -156,42 +156,110 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
         } catch {}
       }
 
-      // ADU footprint — draggable to reposition on lot
+      // ADU footprint — draggable to reposition, corner handles to resize
       if (aduFootprint && showEnvelope) {
         try {
           map.addSource('adu-footprint', { type: 'geojson', data: aduFootprint.geojson as GeoJSON.Feature })
           map.addLayer({ id: 'adu-fill', type: 'fill', source: 'adu-footprint', paint: { 'fill-color': 'rgba(193, 120, 85, 0.3)' } })
           map.addLayer({ id: 'adu-line', type: 'line', source: 'adu-footprint', paint: { 'line-color': '#c17855', 'line-width': 2, 'line-dasharray': [4, 3] } })
 
+          // Mutable state for ADU rect
+          const aduState = {
+            minLng: aduFootprint.polygon[0][0],
+            minLat: aduFootprint.polygon[0][1],
+            maxLng: aduFootprint.polygon[1][0],
+            maxLat: aduFootprint.polygon[2][1],
+          }
+
+          const updateAduSource = () => {
+            const poly: [number, number][] = [
+              [aduState.minLng, aduState.minLat],
+              [aduState.maxLng, aduState.minLat],
+              [aduState.maxLng, aduState.maxLat],
+              [aduState.minLng, aduState.maxLat],
+              [aduState.minLng, aduState.minLat],
+            ]
+            const src = map.getSource('adu-footprint') as mapboxgl.GeoJSONSource
+            if (src) src.setData({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [poly] }, properties: {} })
+          }
+
+          const getAduAreaSqft = () => {
+            const w = distanceFt([aduState.minLng, aduState.minLat], [aduState.maxLng, aduState.minLat])
+            const h = distanceFt([aduState.minLng, aduState.minLat], [aduState.minLng, aduState.maxLat])
+            return Math.round(w * h)
+          }
+
+          // Center label — drag to move entire ADU
           const labelEl = document.createElement('div')
           labelEl.style.cursor = 'grab'
-          labelEl.innerHTML = `<span style="background:rgba(193,120,85,0.92);padding:3px 10px;border-radius:4px;font-size:10px;font-weight:700;color:#fff;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.2)">${aduFootprint.label} ✥</span>`
+          const updateLabel = () => {
+            const sqft = getAduAreaSqft()
+            labelEl.innerHTML = `<span style="background:rgba(193,120,85,0.92);padding:3px 10px;border-radius:4px;font-size:10px;font-weight:700;color:#fff;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.2)">${sqft.toLocaleString()} sqft ✥</span>`
+          }
+          updateLabel()
+
+          const centerLng = () => (aduState.minLng + aduState.maxLng) / 2
+          const centerLat = () => (aduState.minLat + aduState.maxLat) / 2
 
           const aduMarker = new mapboxgl.Marker({ element: labelEl, anchor: 'center', draggable: true })
-            .setLngLat(aduFootprint.center)
+            .setLngLat([centerLng(), centerLat()])
             .addTo(map)
 
-          // Compute ADU half-widths for repositioning the rectangle
-          const aduPoly = aduFootprint.polygon
-          const aduHalfW = (aduPoly[1][0] - aduPoly[0][0]) / 2
-          const aduHalfH = (aduPoly[2][1] - aduPoly[0][1]) / 2
+          const halfW = () => (aduState.maxLng - aduState.minLng) / 2
+          const halfH = () => (aduState.maxLat - aduState.minLat) / 2
 
           aduMarker.on('drag', () => {
             const pos = aduMarker.getLngLat()
-            const newPoly: [number, number][] = [
-              [pos.lng - aduHalfW, pos.lat - aduHalfH],
-              [pos.lng + aduHalfW, pos.lat - aduHalfH],
-              [pos.lng + aduHalfW, pos.lat + aduHalfH],
-              [pos.lng - aduHalfW, pos.lat + aduHalfH],
-              [pos.lng - aduHalfW, pos.lat - aduHalfH],
-            ]
-            const src = map.getSource('adu-footprint') as mapboxgl.GeoJSONSource
-            if (src) {
-              src.setData({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [newPoly] }, properties: {} })
-            }
+            const hw = halfW(), hh = halfH()
+            aduState.minLng = pos.lng - hw
+            aduState.maxLng = pos.lng + hw
+            aduState.minLat = pos.lat - hh
+            aduState.maxLat = pos.lat + hh
+            updateAduSource()
+            // Move corner handles
+            cornerMarkers.forEach(cm => cm.update())
           })
 
           aduMarkerRef.current = aduMarker
+
+          // Corner resize handles
+          const corners = [
+            { name: 'sw', getLng: () => aduState.minLng, getLat: () => aduState.minLat },
+            { name: 'se', getLng: () => aduState.maxLng, getLat: () => aduState.minLat },
+            { name: 'ne', getLng: () => aduState.maxLng, getLat: () => aduState.maxLat },
+            { name: 'nw', getLng: () => aduState.minLng, getLat: () => aduState.maxLat },
+          ]
+
+          const cornerMarkers = corners.map(corner => {
+            const el = document.createElement('div')
+            el.style.cssText = 'width:10px;height:10px;background:#c17855;border:2px solid #fff;border-radius:1px;cursor:nwse-resize;box-shadow:0 1px 3px rgba(0,0,0,0.4)'
+
+            const marker = new mapboxgl.Marker({ element: el, anchor: 'center', draggable: true })
+              .setLngLat([corner.getLng(), corner.getLat()])
+              .addTo(map)
+
+            marker.on('drag', () => {
+              const pos = marker.getLngLat()
+              if (corner.name.includes('w')) aduState.minLng = pos.lng
+              if (corner.name.includes('e')) aduState.maxLng = pos.lng
+              if (corner.name.includes('s')) aduState.minLat = pos.lat
+              if (corner.name.includes('n')) aduState.maxLat = pos.lat
+              updateAduSource()
+              updateLabel()
+              // Move center marker
+              aduMarker.setLngLat([centerLng(), centerLat()])
+              // Move other corners
+              cornerMarkers.forEach(cm => cm.update())
+            })
+
+            return {
+              marker,
+              update: () => marker.setLngLat([corner.getLng(), corner.getLat()]),
+            }
+          })
+
+          // Store corner markers for cleanup
+          editMarkersRef.current.push(...cornerMarkers.map(cm => cm.marker))
         } catch {}
       }
 
