@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Box, Typography, Stack } from '@mui/material'
 import type { BuildabilityAssessment, RegulatoryFinding } from '../types/assessment'
-import { analyzeParcel, getOuterRing, formatDist, perimeterFt } from '../utils/geometry'
+import { analyzeParcel, getOuterRing, formatDist, perimeterFt, sqftToSqm, sqftToAcres } from '../utils/geometry'
 
 interface Props {
   findings: RegulatoryFinding[]
@@ -40,12 +40,23 @@ export default function SetbackDiagram({ findings, assessment }: Props) {
   const buildW = lotW - sS * 2
   const buildH = lotH - fS - rS
 
-  // Compute real edge lengths for the 4 primary edges (approximate for irregular lots)
-  const edgeLengths = vertices.length >= 4
-    ? { front: vertices[0]?.edgeLengthFt, right: vertices[1]?.edgeLengthFt, rear: vertices[2]?.edgeLengthFt, left: vertices[3]?.edgeLengthFt }
-    : { front: null, right: null, rear: null, left: null }
-  const cornerAngles = vertices.length >= 4
-    ? [vertices[0]?.angleDeg, vertices[1]?.angleDeg, vertices[2]?.angleDeg, vertices[3]?.angleDeg]
+  // Identify front/rear/side edges by latitude (front = lowest lat midpoint)
+  const edgeLengths = (() => {
+    if (vertices.length < 3) return { front: null, right: null, rear: null, left: null }
+    // Sort edges by midpoint latitude to identify front (lowest) and rear (highest)
+    const edges = vertices.map((v, i) => {
+      const next = vertices[(i + 1) % vertices.length]
+      const midLat = (v.coord[1] + next.coord[1]) / 2
+      return { idx: i, len: v.edgeLengthFt, midLat }
+    }).sort((a, b) => a.midLat - b.midLat)
+    const front = edges[0]?.len ?? null
+    const rear = edges[edges.length - 1]?.len ?? null
+    const sides = edges.slice(1, -1)
+    return { front, right: sides[0]?.len ?? null, rear, left: sides[1]?.len ?? null }
+  })()
+  // Only show corner angles for parcels with 3-6 vertices (avoid clutter on complex shapes)
+  const cornerAngles = vertices.length >= 3 && vertices.length <= 6
+    ? vertices.map(v => v.angleDeg)
     : []
 
   // Scale bar: 20ft reference
@@ -176,19 +187,27 @@ export default function SetbackDiagram({ findings, assessment }: Props) {
           </text>
         )}
 
-        {/* Corner angles */}
-        {cornerAngles.length >= 4 && cornerAngles.map((angle, i) => {
-          if (!angle || angle > 160 || angle < 10) return null
-          const cx = i === 0 || i === 3 ? pad + 14 : pad + lotW - 14
-          const cy = i === 0 || i === 1 ? pad + 14 : pad + lotH - 14
-          return (
-            <g key={i}>
-              <text x={cx} y={cy} textAnchor="middle" fill="#7a6e65" fontSize={7} fontWeight={600} fontFamily="Inter, sans-serif">
+        {/* Corner angles — positioned at lot rectangle corners */}
+        {cornerAngles.length >= 3 && (() => {
+          // Place angles at evenly distributed corners of the lot rectangle
+          const positions = [
+            { x: pad + 14, y: pad + 14 },           // top-left
+            { x: pad + lotW - 14, y: pad + 14 },    // top-right
+            { x: pad + lotW - 14, y: pad + lotH - 14 }, // bottom-right
+            { x: pad + 14, y: pad + lotH - 14 },    // bottom-left
+            { x: pad + lotW / 2, y: pad + 14 },     // top-center (5th vertex)
+            { x: pad + lotW / 2, y: pad + lotH - 14 }, // bottom-center (6th vertex)
+          ]
+          return cornerAngles.map((angle, i) => {
+            if (!angle || angle > 160 || angle < 10 || i >= positions.length) return null
+            const pos = positions[i]
+            return (
+              <text key={i} x={pos.x} y={pos.y} textAnchor="middle" fill="#7a6e65" fontSize={7} fontWeight={600} fontFamily="Inter, sans-serif">
                 {Math.round(angle)}°
               </text>
-            </g>
-          )
-        })}
+            )
+          })
+        })()}
 
         {/* Zone labels */}
         <text x={W / 2} y={pad + fS / 2 - 12} textAnchor="middle" fill="#3d2c24" fontSize={9} fontWeight={700} fontFamily="Inter, sans-serif">FRONT</text>
@@ -204,12 +223,12 @@ export default function SetbackDiagram({ findings, assessment }: Props) {
 
       {/* Stats below */}
       <Stack direction="row" spacing={1.2} justifyContent="center" flexWrap="wrap" sx={{ mt: 1.5 }}>
-        {lotArea && <StatPill label="Lot Area" value={`${Math.round(lotArea).toLocaleString()} sqft`} />}
-        {envArea && <StatPill label="Buildable" value={`${Math.round(envArea).toLocaleString()} sqft`} color="#16a34a" />}
+        {lotArea && <StatPill label="Lot Area" value={`${Math.round(lotArea).toLocaleString()} sqft`} sub={`${Math.round(sqftToSqm(lotArea))} m²${sqftToAcres(lotArea) >= 0.1 ? ` · ${sqftToAcres(lotArea).toFixed(2)} ac` : ''}`} />}
+        {envArea && <StatPill label="Buildable" value={`${Math.round(envArea).toLocaleString()} sqft`} sub={`${Math.round(sqftToSqm(envArea))} m²`} color="#16a34a" />}
         {coverage && <StatPill label="Coverage" value={`${coverage}%`} color="#16a34a" />}
-        {maxHeight && <StatPill label="Max Height" value={`${maxHeight} ft`} />}
+        {maxHeight && <StatPill label="Max Height" value={`${maxHeight} ft · ${(maxHeight * 0.3048).toFixed(1)} m`} />}
         {rfar && <StatPill label="RFAR" value={`${rfar}`} />}
-        {perimeter > 0 && <StatPill label="Perimeter" value={`${Math.round(perimeter).toLocaleString()}′`} />}
+        {perimeter > 0 && <StatPill label="Perimeter" value={`${Math.round(perimeter).toLocaleString()}′ · ${Math.round(perimeter * 0.3048)} m`} />}
       </Stack>
     </Box>
   )
@@ -229,7 +248,7 @@ function DimLabel({ x, y, text, active }: { x: number; y: number; text: string; 
   )
 }
 
-function StatPill({ label, value, color }: { label: string; value: string; color?: string }) {
+function StatPill({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
     <Box sx={{
       textAlign: 'center', px: 1.5, py: 0.8, borderRadius: 2,
@@ -238,6 +257,7 @@ function StatPill({ label, value, color }: { label: string; value: string; color
     }}>
       <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', display: 'block' }}>{label}</Typography>
       <Typography variant="caption" fontWeight={700} sx={{ display: 'block', color: color || '#3d2c24' }}>{value}</Typography>
+      {sub && <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.5rem', display: 'block' }}>{sub}</Typography>}
     </Box>
   )
 }

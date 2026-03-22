@@ -13,15 +13,16 @@ interface Props {
 }
 
 export default function SiteIntelligence({ assessment }: Props) {
-  const coords = getOuterRing(assessment.parcel?.geometry)
+  const coords = useMemo(() => getOuterRing(assessment.parcel?.geometry), [assessment.parcel?.geometry])
+  const coordsKey = useMemo(() => coords.length > 0 ? `${coords[0][0]},${coords[0][1]},${coords.length}` : '', [coords])
   const [slopeInfo, setSlopeInfo] = useState<{ slopePct: number; minElev: number; maxElev: number; avgElev: number } | null>(null)
 
   useEffect(() => {
     if (!MAPBOX_TOKEN || coords.length < 4) return
     getParcelSlope(coords, MAPBOX_TOKEN).then(setSlopeInfo).catch(() => {})
-  }, [coords.length])
-  const lotAnalysis = useMemo(() => analyzeLotShape(coords), [coords])
-  const perimeter = useMemo(() => coords.length > 2 ? perimeterFt(coords) : 0, [coords])
+  }, [coordsKey])
+  const lotAnalysis = useMemo(() => analyzeLotShape(coords), [coordsKey])
+  const perimeter = useMemo(() => coords.length > 2 ? perimeterFt(coords) : 0, [coordsKey])
 
   if (!lotAnalysis) return null
 

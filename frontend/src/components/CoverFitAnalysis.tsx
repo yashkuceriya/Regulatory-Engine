@@ -100,7 +100,7 @@ export default memo(function CoverFitAnalysis({ assessment, projectType, targetS
   const hasPrePermit = zone.startsWith('R1') || zone.startsWith('R2')
   const isPreApproved = hasPrePermit && overlayCount === 0 && bestUnit && bestUnit.sqft <= 1000 // S1/S2 are LADBS pre-approved
   // Pre-approved S1/S2 plans: 21-30 day LADBS approval per Standard Plan Program
-  const permitWeeks = isPreApproved ? '3-4' : hasPrePermit && overlayCount === 0 ? '8-12' : overlayCount <= 1 ? '12-16' : overlayCount <= 3 ? '16-24' : '24+'
+  const permitWeeks = isPreApproved ? '3-4' : overlayCount === 0 ? '8-12' : overlayCount <= 1 ? '12-16' : overlayCount <= 3 ? '16-24' : '24+'
   const permitRisk = isPreApproved ? 'Low' : overlayCount === 0 ? 'Low' : overlayCount <= 2 ? 'Medium' : 'High'
 
   // SB 543 (2026): Multi-ADU combination eligibility

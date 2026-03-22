@@ -154,7 +154,7 @@ export default memo(function BuildingEnvelopeViz({ assessment }: Props) {
         <path d={toPath(envTop)} fill="rgba(34,197,94,0.15)" stroke="#22c55e" strokeWidth={1} strokeDasharray="4,2" />
 
         {/* Encroachment plane (LAMC §12.08 C.5(a)) — angled plane starting at start_height, cutting inward at angle */}
-        {epStartHeight && epAngle && (() => {
+        {epStartHeight && epAngle && epAngle > 0 && epAngle < 90 && (() => {
           const startH = epStartHeight * heightScale
           // The plane starts at the side edges at start_height and slopes inward at epAngle degrees
           // At the top of the envelope, the plane has cut in by: (maxHeight - startHeight) / tan(angle)

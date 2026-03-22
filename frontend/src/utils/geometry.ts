@@ -20,6 +20,26 @@ export function ftToM(ft: number): number {
   return ft * 0.3048
 }
 
+/** Convert sqft to m². */
+export function sqftToSqm(sqft: number): number {
+  return sqft * 0.092903
+}
+
+/** Convert sqft to acres. */
+export function sqftToAcres(sqft: number): number {
+  return sqft / 43560
+}
+
+/** Format area with multiple units: "7,500 sqft · 697 m² · 0.17 ac" */
+export function formatArea(sqft: number): string {
+  const m2 = sqftToSqm(sqft)
+  const ac = sqftToAcres(sqft)
+  const parts = [`${Math.round(sqft).toLocaleString()} sqft`]
+  parts.push(`${Math.round(m2).toLocaleString()} m²`)
+  if (ac >= 0.1) parts.push(`${ac.toFixed(2)} ac`)
+  return parts.join(' · ')
+}
+
 /** Format distance for display: "52.3 ft (15.9 m)" */
 export function formatDist(ft: number): string {
   if (ft >= 100) return `${Math.round(ft)}′`
@@ -80,16 +100,21 @@ export interface ParcelVertex {
 }
 
 export function analyzeParcel(coords: number[][]): ParcelVertex[] {
-  if (coords.length < 4) return [] // need at least a triangle + closing point
+  if (!coords || coords.length < 4) return []
   // Remove closing duplicate
-  const pts = coords[coords.length - 1][0] === coords[0][0] && coords[coords.length - 1][1] === coords[0][1]
-    ? coords.slice(0, -1)
-    : coords
+  let pts: number[][]
+  try {
+    pts = coords[coords.length - 1][0] === coords[0][0] && coords[coords.length - 1][1] === coords[0][1]
+      ? coords.slice(0, -1)
+      : [...coords]
+  } catch {
+    return []
+  }
 
   if (pts.length < 3) return []
 
-  // Merge near-collinear vertices (angle > 170° means nearly straight)
-  const simplified: number[][] = []
+  // Step 1: Merge near-collinear vertices (angle > 170° means nearly straight)
+  let simplified: number[][] = []
   for (let i = 0; i < pts.length; i++) {
     const prev = pts[(i - 1 + pts.length) % pts.length]
     const curr = pts[i]
@@ -100,21 +125,60 @@ export function analyzeParcel(coords: number[][]): ParcelVertex[] {
     }
   }
 
-  if (simplified.length < 3) return pts.map((p, i) => ({
-    coord: p,
-    edgeLengthFt: distanceFt(p, pts[(i + 1) % pts.length]),
-    angleDeg: cornerAngle(pts[(i - 1 + pts.length) % pts.length], p, pts[(i + 1) % pts.length]),
-  }))
+  if (simplified.length < 3) simplified = pts
 
-  return simplified.map((p, i) => {
-    const next = simplified[(i + 1) % simplified.length]
-    const prev = simplified[(i - 1 + simplified.length) % simplified.length]
+  // Step 2: Merge vertices that are too close together (< 2ft)
+  const merged: number[][] = [simplified[0]]
+  for (let i = 1; i < simplified.length; i++) {
+    if (distanceFt(simplified[i], merged[merged.length - 1]) >= 2) {
+      merged.push(simplified[i])
+    }
+  }
+  // Also check last vs first
+  if (merged.length > 1 && distanceFt(merged[merged.length - 1], merged[0]) < 2) {
+    merged.pop()
+  }
+
+  if (merged.length < 3) merged.push(...pts.slice(0, 3 - merged.length))
+
+  return merged.map((p, i) => {
+    const next = merged[(i + 1) % merged.length]
+    const prev = merged[(i - 1 + merged.length) % merged.length]
     return {
       coord: p,
       edgeLengthFt: distanceFt(p, next),
       angleDeg: cornerAngle(prev, p, next),
     }
   })
+}
+
+/**
+ * Compute area of a polygon from [lng, lat] coordinates using the
+ * spherical excess formula. Returns area in sqft.
+ */
+export function polygonAreaSqft(coords: number[][]): number {
+  // Close the ring if needed
+  const ring = coords.length > 0 &&
+    (coords[0][0] !== coords[coords.length - 1][0] || coords[0][1] !== coords[coords.length - 1][1])
+    ? [...coords, coords[0]]
+    : coords
+  if (ring.length < 4) return 0
+
+  // Use surveyor's formula with lat/lng → ft conversion
+  // At LA latitude (~34°N): 1° lat ≈ 364,000 ft, 1° lng ≈ cos(34°) × 364,000 ≈ 301,800 ft
+  const latCenter = ring.reduce((s, c) => s + c[1], 0) / ring.length
+  const ftPerDegLat = 364000
+  const ftPerDegLng = 364000 * Math.cos(latCenter * Math.PI / 180)
+
+  let area = 0
+  for (let i = 0; i < ring.length - 1; i++) {
+    const x1 = ring[i][0] * ftPerDegLng
+    const y1 = ring[i][1] * ftPerDegLat
+    const x2 = ring[i + 1][0] * ftPerDegLng
+    const y2 = ring[i + 1][1] * ftPerDegLat
+    area += x1 * y2 - x2 * y1
+  }
+  return Math.abs(area) / 2
 }
 
 /** Compute parcel perimeter in feet. */

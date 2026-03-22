@@ -4,7 +4,7 @@ import { Layers, Straighten, Close, Terrain, Edit, EditOff } from '@mui/icons-ma
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { BuildabilityAssessment } from '../types/assessment'
-import { distanceFt, ftToM, formatDist, formatDistDual, midpoint as geoMidpoint, analyzeParcel, getOuterRing, getParcelSlope } from '../utils/geometry'
+import { distanceFt, ftToM, formatDist, formatDistDual, midpoint as geoMidpoint, analyzeParcel, getOuterRing, getParcelSlope, formatArea, polygonAreaSqft } from '../utils/geometry'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
 
@@ -27,6 +27,7 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
   const aduMarkerRef = useRef<mapboxgl.Marker | null>(null)
   const [measuring, setMeasuring] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [editArea, setEditArea] = useState<string | null>(null)
   const [showTerrain, setShowTerrain] = useState(false)
   const [slopeInfo, setSlopeInfo] = useState<{ slopePct: number; minElev: number; maxElev: number; avgElev: number } | null>(null)
   const measurePointsRef = useRef<[number, number][]>([])
@@ -64,8 +65,9 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
       const envGeo = assessment.buildable_envelope?.geometry
       if (!envGeo) return null
       const coords: number[][] = envGeo.type === 'Polygon' ? envGeo.coordinates[0] : envGeo.type === 'MultiPolygon' ? envGeo.coordinates[0][0] : []
-      if (coords.length < 4) return null
+      if (!coords || coords.length < 4) return null
       const lngs = coords.map((c: number[]) => c[0]), lats = coords.map((c: number[]) => c[1])
+      if (lngs.length === 0) return null
       const minLng = Math.min(...lngs), maxLng = Math.max(...lngs), minLat = Math.min(...lats), maxLat = Math.max(...lats)
       const envW = maxLng - minLng, envH = maxLat - minLat
       if (envW === 0 || envH === 0) return null
@@ -220,8 +222,8 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
               <div style="font-family:Inter,sans-serif;font-size:12px;color:#5a4238;line-height:1.6">
                 <strong style="font-size:13px">${assessment.parcel?.apn || 'Parcel'}</strong>
                 <div style="color:#7a6e65;margin:4px 0">${assessment.zoning?.zoning_string || ''}</div>
-                ${lotArea ? `<div>Lot: <strong>${Math.round(lotArea).toLocaleString()} sqft</strong> · ${Math.round(ftToM(Math.sqrt(lotArea)) ** 2)} m²</div>` : ''}
-                ${envArea ? `<div>Buildable: <strong style="color:#16a34a">${Math.round(envArea).toLocaleString()} sqft</strong></div>` : ''}
+                ${lotArea ? `<div>Lot: <strong>${formatArea(lotArea)}</strong></div>` : ''}
+                ${envArea ? `<div>Buildable: <strong style="color:#16a34a">${formatArea(envArea)}</strong></div>` : ''}
               </div>
             `)
             .addTo(map)
@@ -347,25 +349,11 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
       marker.on('drag', () => {
         const newPos = marker.getLngLat()
         coords[idx] = [newPos.lng, newPos.lat]
-        // Update parcel source in real-time
         const src = map.getSource('parcel') as mapboxgl.GeoJSONSource
         if (src) {
           src.setData({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: {} })
         }
-      })
-
-      marker.on('dragend', () => {
-        // Recompute area after drag
-        // Shoelace formula on projected coordinates (approximate for small areas)
-        let area = 0
-        for (let i = 0; i < coords.length - 1; i++) {
-          area += coords[i][0] * coords[i + 1][1] - coords[i + 1][0] * coords[i][1]
-        }
-        area = Math.abs(area) / 2
-        // Convert from degrees² to sqft (very rough: 1° lat ≈ 364,000 ft, 1° lng ≈ 288,000 ft at LA latitude)
-        const areaFt = area * 364000 * 288000
-        const el = marker.getElement()
-        el.title = `~${Math.round(areaFt).toLocaleString()} sqft after edit`
+        setEditArea(formatArea(polygonAreaSqft(coords)))
       })
 
       editMarkersRef.current.push(marker)
@@ -456,6 +444,7 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
       {editing && (
         <Box sx={{ position: 'absolute', top: 56, left: 100, bgcolor: 'rgba(37,99,235,0.92)', color: '#fff', px: 1.5, py: 0.5, borderRadius: 1, fontSize: '0.7rem', fontWeight: 600 }}>
           Drag vertices to edit boundary
+          {editArea && <span style={{ marginLeft: 8, opacity: 0.9 }}>Area: {editArea}</span>}
         </Box>
       )}
 
