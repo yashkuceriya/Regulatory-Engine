@@ -3,9 +3,10 @@ title: Cover Regulatory Engine — Production Architecture
 ---
 flowchart TB
     subgraph Frontend["Frontend (React + Mapbox GL JS + MUI)"]
-        UI[Address Input +<br/>Project Parameters]
-        Map[Map Panel<br/>Parcel + Setback Overlay]
-        Panel[Assessment Report<br/>SFR / ADU / Citations / Chat]
+        UI[Address Input<br/>Mapbox Autocomplete +<br/>Project Parameters]
+        Map[Interactive Map Panel<br/>Parcel • Setback • Envelope • ADU<br/>Measure • Terrain • Edit • Rotate]
+        SI[Site Intelligence<br/>Frontage • Depth • Slope<br/>Sun Exposure • Lot Shape]
+        Panel[Assessment Report<br/>SFR / ADU / Citations / Chat<br/>Cover Fit • ROI • PDF Export]
         FB[Feedback Loop<br/>Per-finding thumbs up/down]
     end
 
@@ -13,22 +14,24 @@ flowchart TB
         EP["/api/assess — Main endpoint"]
         Chat["/api/chat — SSE streaming"]
         FBE["/api/feedback — User corrections"]
-        Pipeline[Pipeline Orchestrator<br/>Timed, fail-fast, partial results]
+        Pipeline[Pipeline Orchestrator<br/>Timed, fail-fast, cached<br/>Request ID tracing]
+        Cache[(LRU Cache<br/>1hr TTL, 100 entries)]
     end
 
     subgraph DataPipeline["Phase 1: Data Acquisition"]
         GC[Geocoder<br/>City Centerline + Census Fallback<br/>→ lat, lon, match_score]
         BC[Boundary Check<br/>LA City Limits Gate<br/>→ inside/outside]
-        PL[Parcel Lookup<br/>County MapServer/0<br/>→ APN, lot area, geometry]
+        PL[Parcel Lookup<br/>LA County MapServer<br/>→ APN, lot area, geometry]
+        PLS[CA Statewide Parcels<br/>ArcGIS FeatureServer<br/>→ fallback for non-LA]
         ZL[Zoning Lookup<br/>City FeatureServer/15<br/>→ zoning string, category]
         ZP[Zone Parser<br/>Regex decomposition<br/>→ base, HD, hillside, flags]
     end
 
     subgraph RuleEngine["Phase 2: Deterministic Rule Engine"]
         RE[SFR Standards<br/>CP-7150 Table Lookup<br/>→ setbacks, height, RFAR]
-        OE[Overlay Detection<br/>HPOZ, hillside, specific plan<br/>→ OverlayFlags]
+        OE[Overlay Detection<br/>HPOZ, hillside, TOC, fault<br/>→ OverlayFlags]
         GE[Geometry Engine<br/>Shapely setback inset<br/>→ buildable envelope GeoJSON]
-        AE[ADU Engine<br/>Gov. Code §66314<br/>→ eligibility, size, height, fees]
+        AE[ADU Engine<br/>Gov. Code §66314, SB 897<br/>SB 543, AB 2221, SB 1211<br/>→ eligibility, size, height, fees]
     end
 
     subgraph Synthesis["Phase 3: Synthesis & Enrichment"]
@@ -39,29 +42,34 @@ flowchart TB
     subgraph Data["Data Stores"]
         DB[(SQLite → Postgres<br/>feedback, cached results)]
         RF[rule_fragments.json<br/>CP-7150 Tables]
-        AR[adu_rules.json<br/>State ADU Law]
+        AR[adu_rules.json<br/>State ADU Law 2026]
         LC[lamc_chunks.json<br/>§12.08, §12.09, §12.21]
-        GS[golden_set.jsonl<br/>15 curated test parcels]
     end
 
-    subgraph External["External APIs (ArcGIS REST Services)"]
+    subgraph External["External APIs"]
         E1[maps.lacity.org<br/>centerlineLocator]
         E2[public.gis.lacounty.gov<br/>LACounty_Parcel/0]
         E3[services5.arcgis.com<br/>Zoning FeatureServer/15]
         E4[maps.lacity.org<br/>Boundaries MapServer/7]
+        E5[services1.arcgis.com<br/>CA Statewide Parcels]
+        E6[Census Bureau<br/>Geocoder Fallback]
+        E7[Mapbox<br/>Geocoding • Terrain RGB<br/>Satellite • Autocomplete]
     end
 
     UI -->|"address + params"| EP
-    EP --> Pipeline
+    EP --> Cache
+    Cache -->|miss| Pipeline
+    Cache -->|hit| Panel
     Panel -->|"question + context"| Chat
     FB --> FBE
 
     Pipeline --> GC
     GC -->|"lat, lon, score"| BC
-    BC -->|"inside = true"| PL
-    BC -->|"inside = false → early return"| EP
+    BC -->|"inside LA"| PL
+    BC -->|"outside LA"| PLS
 
     PL -->|ParcelObservation| ZL
+    PLS -->|ParcelObservation| ZL
     ZL -->|ZoningObservation| ZP
 
     ZP --> RE
@@ -87,12 +95,18 @@ flowchart TB
     FBE -.->|writes| DB
 
     GC -->|HTTP| E1
+    GC -->|HTTP fallback| E6
     PL -->|HTTP| E2
+    PLS -->|HTTP| E5
     ZL -->|HTTP| E3
     BC -->|HTTP| E4
+    UI -.->|autocomplete| E7
+    Map -.->|terrain + tiles| E7
+    SI -.->|elevation| E7
 
     Pipeline -->|BuildabilityAssessment| Panel
     Pipeline -->|GeoJSON| Map
+    Pipeline -->|parcel geometry| SI
 
     %% Styling
     classDef deterministic fill:#dcfce7,stroke:#16a34a,color:#166534
@@ -104,7 +118,7 @@ flowchart TB
 
     class RE,OE,GE,AE,AS deterministic
     class CL llm
-    class E1,E2,E3,E4 external
-    class DB,RF,AR,GS,LC data
-    class UI,Map,Panel,FB frontend
-    class EP,Chat,FBE,Pipeline api
+    class E1,E2,E3,E4,E5,E6,E7 external
+    class DB,RF,AR,LC data
+    class UI,Map,Panel,FB,SI frontend
+    class EP,Chat,FBE,Pipeline,Cache api
