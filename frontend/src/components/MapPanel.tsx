@@ -4,7 +4,7 @@ import { Layers, Straighten, Close, Terrain, Edit, EditOff } from '@mui/icons-ma
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { BuildabilityAssessment } from '../types/assessment'
-import { distanceFt, ftToM, formatDist, formatDistDual, midpoint as geoMidpoint, analyzeParcel, getOuterRing, getParcelSlope, formatArea, polygonAreaSqft } from '../utils/geometry'
+import { distanceFt, ftToM, formatDist, formatDistDual, midpoint as geoMidpoint, analyzeParcel, getOuterRing, getParcelSlope, formatArea, polygonAreaSqft, analyzeLotShape, sqftToSqm } from '../utils/geometry'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
 
@@ -28,6 +28,10 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
   const [measuring, setMeasuring] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editArea, setEditArea] = useState<string | null>(null)
+  const [editAnalysis, setEditAnalysis] = useState<{
+    areaSqft: number; coveragePct: number; envelopeSqft: number;
+    frontage: number; depth: number; aduFits: string | null;
+  } | null>(null)
   const [showTerrain, setShowTerrain] = useState(false)
   const [slopeInfo, setSlopeInfo] = useState<{ slopePct: number; minElev: number; maxElev: number; avgElev: number } | null>(null)
   const measurePointsRef = useRef<[number, number][]>([])
@@ -353,7 +357,36 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
         if (src) {
           src.setData({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: {} })
         }
-        setEditArea(formatArea(polygonAreaSqft(coords)))
+
+        // Live analysis
+        const areaSqft = polygonAreaSqft(coords)
+        setEditArea(formatArea(areaSqft))
+
+        const front = setbacks.front || 15
+        const side = setbacks.side || 5
+        const rear = setbacks.rear || 15
+        // Estimate envelope: area minus setback strips (rough approximation)
+        const lotInfo = analyzeLotShape(coords)
+        const frontage = lotInfo?.frontageWidthFt || 50
+        const depth = lotInfo?.lotDepthFt || 100
+        const envelopeW = Math.max(0, frontage - side * 2)
+        const envelopeD = Math.max(0, depth - front - rear)
+        const envelopeSqft = envelopeW * envelopeD
+        const coveragePct = areaSqft > 0 ? Math.round((envelopeSqft / areaSqft) * 100) : 0
+
+        // ADU fit check
+        const units = [
+          { model: 'Custom Build', sqft: 1200, minB: 1500, minLot: 7000 },
+          { model: 'S2', sqft: 800, minB: 1000, minLot: 5000 },
+          { model: 'S1', sqft: 580, minB: 700, minLot: 3500 },
+        ]
+        const aduFit = units.find(u => envelopeSqft >= u.minB && areaSqft >= u.minLot)
+
+        setEditAnalysis({
+          areaSqft, coveragePct, envelopeSqft,
+          frontage, depth,
+          aduFits: aduFit ? `Cover ${aduFit.model} (${aduFit.sqft} sqft)` : null,
+        })
       })
 
       editMarkersRef.current.push(marker)
@@ -442,9 +475,45 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
         </Box>
       )}
       {editing && (
-        <Box sx={{ position: 'absolute', top: 56, left: 100, bgcolor: 'rgba(37,99,235,0.92)', color: '#fff', px: 1.5, py: 0.5, borderRadius: 1, fontSize: '0.7rem', fontWeight: 600 }}>
-          Drag vertices to edit boundary
-          {editArea && <span style={{ marginLeft: 8, opacity: 0.9 }}>Area: {editArea}</span>}
+        <Box sx={{
+          position: 'absolute', top: 12, right: 80, maxWidth: 280,
+          bgcolor: 'rgba(37,99,235,0.95)', color: '#fff', px: 2, py: 1.5,
+          borderRadius: 2, fontSize: '0.7rem', backdropFilter: 'blur(8px)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+        }}>
+          <Typography sx={{ fontSize: 11, fontWeight: 700, mb: 0.5 }}>
+            Edit Mode — Drag vertices
+          </Typography>
+          {editAnalysis ? (
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', mt: 1 }}>
+              <Box>
+                <Typography sx={{ fontSize: 8, opacity: 0.6 }}>LOT AREA</Typography>
+                <Typography sx={{ fontSize: 13, fontWeight: 800 }}>{Math.round(editAnalysis.areaSqft).toLocaleString()} sf</Typography>
+                <Typography sx={{ fontSize: 8, opacity: 0.6 }}>{Math.round(sqftToSqm(editAnalysis.areaSqft))} m²</Typography>
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: 8, opacity: 0.6 }}>BUILDABLE</Typography>
+                <Typography sx={{ fontSize: 13, fontWeight: 800, color: '#86efac' }}>{Math.round(editAnalysis.envelopeSqft).toLocaleString()} sf</Typography>
+                <Typography sx={{ fontSize: 8, opacity: 0.6 }}>{editAnalysis.coveragePct}% coverage</Typography>
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: 8, opacity: 0.6 }}>FRONTAGE</Typography>
+                <Typography sx={{ fontSize: 11, fontWeight: 700 }}>{Math.round(editAnalysis.frontage)}′</Typography>
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: 8, opacity: 0.6 }}>DEPTH</Typography>
+                <Typography sx={{ fontSize: 11, fontWeight: 700 }}>{Math.round(editAnalysis.depth)}′</Typography>
+              </Box>
+              <Box sx={{ gridColumn: '1 / -1', mt: 0.5, pt: 0.5, borderTop: '1px solid rgba(255,255,255,0.2)' }}>
+                <Typography sx={{ fontSize: 8, opacity: 0.6 }}>ADU FIT</Typography>
+                <Typography sx={{ fontSize: 11, fontWeight: 700, color: editAnalysis.aduFits ? '#86efac' : '#fca5a5' }}>
+                  {editAnalysis.aduFits || 'Does not fit — lot too small'}
+                </Typography>
+              </Box>
+            </Box>
+          ) : (
+            <Typography sx={{ fontSize: 10, opacity: 0.7 }}>Drag a vertex to see live analysis</Typography>
+          )}
         </Box>
       )}
 
