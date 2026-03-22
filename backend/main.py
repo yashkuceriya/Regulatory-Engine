@@ -356,8 +356,18 @@ async def demo_addresses():
         },
         {
             "address": "232 N Crescent Dr Beverly Hills CA 90210",
-            "scenario": "Outside city limits",
-            "expected": "Outside LA City. Pipeline stops at boundary check.",
+            "scenario": "Outside LA — Beverly Hills",
+            "expected": "Statewide parcel + state ADU rules. No local zoning data.",
+        },
+        {
+            "address": "4567 El Cajon Blvd San Diego CA 92115",
+            "scenario": "San Diego — statewide",
+            "expected": "CA statewide parcel data. State ADU eligibility check.",
+        },
+        {
+            "address": "1234 4th St Santa Monica CA 90401",
+            "scenario": "Santa Monica — statewide",
+            "expected": "CA statewide parcel data. State ADU eligibility check.",
         },
     ]
 

@@ -51,12 +51,37 @@ export default function App() {
     isError: demoAddressesError,
   } = useDemoAddresses()
 
+  const [geocodeSuggestions, setGeocodeSuggestions] = useState<string[]>([])
+  const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Live address autocomplete via Mapbox Geocoding API
+  useEffect(() => {
+    if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current)
+    const q = searchValue.trim()
+    if (q.length < 4) { setGeocodeSuggestions([]); return }
+    const token = import.meta.env.VITE_MAPBOX_TOKEN
+    if (!token) return
+    geocodeTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?access_token=${token}&country=us&types=address&limit=5&bbox=-124.48,32.53,-114.13,42.01`
+        )
+        if (!res.ok) return
+        const data = await res.json()
+        setGeocodeSuggestions((data.features || []).map((f: any) => f.place_name))
+      } catch {}
+    }, 300) // debounce 300ms
+  }, [searchValue])
+
   const typeaheadOptions = useMemo(() => {
     const options: string[] = []
-    if (demoAddresses) demoAddresses.forEach((d: any) => options.push(d.address))
+    // Live geocode suggestions first
+    geocodeSuggestions.forEach(s => { if (!options.includes(s)) options.push(s) })
+    // Then demo addresses and history
+    if (demoAddresses) demoAddresses.forEach((d: any) => { if (!options.includes(d.address)) options.push(d.address) })
     history.forEach(h => { if (!options.includes(h.address)) options.push(h.address) })
     return options
-  }, [demoAddresses, history])
+  }, [demoAddresses, history, geocodeSuggestions])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -164,7 +189,7 @@ export default function App() {
                 <TextField
                   {...params}
                   inputRef={searchRef}
-                  fullWidth size="small" placeholder="Enter an LA address... (press /)"
+                  fullWidth size="small" placeholder="Enter a California address... (press /)"
                   autoFocus={!assessment}
                   onKeyDown={e => e.key === 'Enter' && handleSearch()}
                   disabled={mutation.isPending}
