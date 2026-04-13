@@ -35,7 +35,7 @@ export default function AssessmentSkeleton() {
         {/* Envelope viz */}
         <Skeleton variant="rounded" height={320} animation="wave" sx={{ borderRadius: 3, mb: 3 }} />
 
-        {/* Cover fit cards */}
+        {/* Fit analysis cards */}
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, mb: 3 }}>
           <Skeleton variant="rounded" height={200} animation="wave" sx={{ borderRadius: 3 }} />
           <Skeleton variant="rounded" height={200} animation="wave" sx={{ borderRadius: 3 }} />

@@ -147,7 +147,7 @@ export default function AssessmentFullPage({ assessment: originalAssessment, onB
     ]
     const fitting = units.filter(u => effectiveB >= u.minBuildable && (lotArea || 0) >= u.minLot)
     const best = fitting[fitting.length - 1]
-    const unitStr = best ? `a Cover ${best.model}` : 'an ADU'
+    const unitStr = best ? `a recommended ${best.model}` : 'an ADU'
     const overlayNames: string[] = []
     const f = assessment.overlay_flags
     if (f.hpoz) overlayNames.push('HPOZ')
@@ -549,6 +549,141 @@ export default function AssessmentFullPage({ assessment: originalAssessment, onB
           })()}
         </Card>
 
+        {/* ── Zone Intelligence: Confidence Breakdown + Permitted Uses + Resources ── */}
+        {(() => {
+          const zoneFindings = allFindings
+          const confBreakdown = zoneFindings.find(f => f.finding_type === 'confidence_breakdown')
+          const permittedTypes = zoneFindings.find(f => f.finding_type === 'permitted_building_types')
+          const zoneResources = zoneFindings.find(f => f.finding_type === 'zone_resources')
+          const zoneClass = zoneFindings.find(f => f.finding_type === 'zone_classification')
+          const hasZoneIntel = confBreakdown || permittedTypes || zoneResources
+
+          if (!hasZoneIntel) return null
+
+          const bd = confBreakdown?.value as any
+          const pt = permittedTypes?.value as any
+          const zr = zoneResources?.value as any
+          const zc = zoneClass?.value as any
+
+          return (
+            <Card id="section-zone-intel" sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', p: 3, mb: 3 }}>
+              <Typography sx={{ fontSize: 16, fontWeight: 700, color: P, mb: 0.5 }}>Zone Intelligence</Typography>
+              <Typography sx={{ fontSize: 12, color: alpha(P, 0.5), mb: 3 }}>
+                {zc ? `${zc.base_zone} — ${zc.category} (Height District ${zc.height_district || '1'})` : assessment.zoning?.zoning_string || ''}
+              </Typography>
+
+              {/* Confidence Breakdown */}
+              {bd && (
+                <Box sx={{ mb: 3, p: 2.5, bgcolor: '#fffbeb', borderRadius: 2, border: '1px solid #fde68a' }}>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+                    <WarningAmber sx={{ fontSize: 18, color: '#d97706' }} />
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#92400e' }}>Why Confidence Is Low</Typography>
+                  </Stack>
+                  <Typography sx={{ fontSize: 12, color: '#78350f', lineHeight: 1.8, mb: 2 }}>
+                    {bd.reason_summary}
+                  </Typography>
+
+                  {/* Per-finding collapsible breakdown */}
+                  {[
+                    { key: 'not_evaluated', label: 'Not Evaluated', color: '#991b1b', bg: '#fee2e2', border: '#fecaca', icon: '✗' },
+                    { key: 'low_confidence', label: 'Low Confidence', color: '#92400e', bg: '#fef3c7', border: '#fde68a', icon: '⚠' },
+                    { key: 'verified', label: 'Verified', color: '#166534', bg: '#dcfce7', border: '#bbf7d0', icon: '✓' },
+                  ].map(group => {
+                    const items: string[] = bd[group.key] || []
+                    if (items.length === 0) return null
+                    return (
+                      <Box key={group.key} sx={{ mb: 1.5 }}>
+                        <Typography sx={{ fontSize: 10, fontWeight: 800, color: group.color, textTransform: 'uppercase', letterSpacing: '0.5px', mb: 0.8 }}>
+                          {group.label} ({items.length})
+                        </Typography>
+                        <Box sx={{ bgcolor: group.bg, borderRadius: 2, border: `1px solid ${group.border}`, overflow: 'hidden' }}>
+                          {items.map((findingType: string) => {
+                            const finding = zoneFindings.find(f => f.finding_type === findingType)
+                            if (!finding) return (
+                              <Box key={findingType} sx={{ px: 1.5, py: 1, borderBottom: `1px solid ${group.border}`, '&:last-child': { borderBottom: 'none' } }}>
+                                <Typography sx={{ fontSize: 12, color: group.color }}>{group.icon} {findingType.replace(/_/g, ' ')}</Typography>
+                              </Box>
+                            )
+                            return <ConfidenceFindingRow key={findingType} finding={finding} groupColor={group.color} groupBorder={group.border} icon={group.icon} />
+                          })}
+                        </Box>
+                      </Box>
+                    )
+                  })}
+                </Box>
+              )}
+
+              {/* Permitted Building Types */}
+              {pt && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: P, mb: 1.5 }}>Permitted Building Types</Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                    <Box sx={{ p: 2, bgcolor: alpha(P, 0.03), borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                      <Typography sx={{ fontSize: 10, fontWeight: 800, color: alpha(P, 0.5), textTransform: 'uppercase', letterSpacing: '0.5px', mb: 1 }}>
+                        Allowed Uses ({pt.uses?.length || 0})
+                      </Typography>
+                      {pt.uses?.map((u: string, i: number) => (
+                        <Stack key={i} direction="row" spacing={0.8} alignItems="flex-start" sx={{ mb: 0.5 }}>
+                          <CheckCircle sx={{ fontSize: 12, color: '#16a34a', mt: 0.3, flexShrink: 0 }} />
+                          <Typography sx={{ fontSize: 12, color: P, lineHeight: 1.5 }}>{u}</Typography>
+                        </Stack>
+                      ))}
+                    </Box>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                      <Box sx={{ p: 2, bgcolor: alpha(P, 0.03), borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                        <Typography sx={{ fontSize: 10, fontWeight: 800, color: alpha(P, 0.5), textTransform: 'uppercase', letterSpacing: '0.5px', mb: 0.5 }}>Density Rule</Typography>
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: P }}>{pt.density_rule}</Typography>
+                      </Box>
+                      <Box sx={{ p: 2, bgcolor: alpha(P, 0.03), borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                        <Typography sx={{ fontSize: 10, fontWeight: 800, color: alpha(P, 0.5), textTransform: 'uppercase', letterSpacing: '0.5px', mb: 0.5 }}>
+                          <GlossaryTerm term="RFAR">FAR</GlossaryTerm> (Floor Area Ratio)
+                        </Typography>
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: P }}>{pt.far}</Typography>
+                      </Box>
+                      {zc?.note && (
+                        <Box sx={{ p: 2, bgcolor: '#f0f9ff', borderRadius: 2, border: '1px solid #bae6fd' }}>
+                          <Typography sx={{ fontSize: 10, fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px', mb: 0.5 }}>Zone Description</Typography>
+                          <Typography sx={{ fontSize: 12, color: '#0c4a6e', lineHeight: 1.6 }}>{zc.note}</Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+                </Box>
+              )}
+
+              {/* Zone Resources */}
+              {zr?.links?.length > 0 && (
+                <Box>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: P, mb: 1.5 }}>Resources & References</Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 1 }}>
+                    {zr.links.map((link: { label: string; url: string }, i: number) => (
+                      <Box
+                        key={i}
+                        component="a"
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{
+                          display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5,
+                          bgcolor: '#fff', borderRadius: 2, border: '1px solid', borderColor: 'divider',
+                          textDecoration: 'none', transition: 'all 0.15s',
+                          '&:hover': { borderColor: P, bgcolor: alpha(P, 0.02), boxShadow: `0 2px 8px ${alpha(P, 0.08)}` },
+                        }}
+                      >
+                        <Description sx={{ fontSize: 16, color: P, flexShrink: 0 }} />
+                        <Box>
+                          <Typography sx={{ fontSize: 12, fontWeight: 600, color: P }}>{link.label}</Typography>
+                          <Typography sx={{ fontSize: 10, color: alpha(P, 0.4) }}>{new URL(link.url).hostname}</Typography>
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </Card>
+          )
+        })()}
+
         {/* ── 3D Building Envelope — show whenever we have findings with setback data ── */}
         <Box id="section-envelope">
           {hasEnvelopeData && <BuildingEnvelopeViz assessment={assessment} />}
@@ -559,7 +694,7 @@ export default function AssessmentFullPage({ assessment: originalAssessment, onB
           <SiteIntelligence assessment={assessment} />
         </Box>
 
-        {/* ── Cover Fit Analysis ── */}
+        {/* ── Fit Analysis Analysis ── */}
         <Box id="section-coverfit">
           <CoverFitAnalysis assessment={assessment} projectType={projectType} targetSqft={targetSqft} targetBeds={targetBeds} />
         </Box>
@@ -729,6 +864,84 @@ function BuildingTypeContent({ bta, assessment }: { bta: BuildingTypeAssessment;
           ))}
         </Box>
       )}
+    </Box>
+  )
+}
+
+/* ─── Confidence Finding Row (collapsible) ─── */
+function ConfidenceFindingRow({ finding, groupColor, groupBorder, icon }: { finding: RegulatoryFinding; groupColor: string; groupBorder: string; icon: string }) {
+  const [open, setOpen] = useState(false)
+  const label = finding.finding_type.replace(/_/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  const confPct = Math.round(finding.confidence * 100)
+  const hasValue = finding.value != null && typeof finding.value !== 'object'
+  const methodLabel = finding.method === 'lookup' ? 'Deterministic Lookup'
+    : finding.method === 'calculation' ? 'Calculated'
+    : finding.method === 'llm_synthesis' ? 'AI-Assisted'
+    : 'Not Evaluated'
+
+  return (
+    <Box sx={{ borderBottom: `1px solid ${groupBorder}`, '&:last-child': { borderBottom: 'none' } }}>
+      <Box
+        onClick={() => setOpen(!open)}
+        sx={{ display: 'flex', alignItems: 'center', px: 1.5, py: 1, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(0,0,0,0.03)' }, transition: 'background-color 0.15s' }}
+      >
+        <Typography sx={{ fontSize: 12, fontWeight: 600, color: groupColor, flex: 1 }}>
+          {icon} {label}
+        </Typography>
+        {hasValue && (
+          <Typography sx={{ fontSize: 12, fontWeight: 700, color: P, mr: 1 }}>
+            {String(finding.value)}{finding.unit ? ` ${finding.unit}` : ''}
+          </Typography>
+        )}
+        <Chip label={`${confPct}%`} size="small" sx={{ height: 16, fontSize: '0.5rem', fontWeight: 700, mr: 1, bgcolor: confPct >= 80 ? '#dcfce7' : confPct >= 60 ? '#fef3c7' : '#fee2e2', color: confPct >= 80 ? '#166534' : confPct >= 60 ? '#92400e' : '#991b1b' }} />
+        <ExpandMore sx={{ fontSize: 14, color: groupColor, opacity: 0.5, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+      </Box>
+      <Collapse in={open}>
+        <Box sx={{ px: 1.5, pb: 1.5, pt: 0.3 }}>
+          {/* Method + confidence */}
+          <Stack direction="row" spacing={0.8} sx={{ mb: 1 }}>
+            <Chip label={methodLabel} size="small" sx={{
+              height: 18, fontSize: '0.5rem', fontWeight: 700,
+              ...(finding.method === 'lookup' ? { bgcolor: '#dcfce7', color: '#166534' }
+                : finding.method === 'calculation' ? { bgcolor: '#dbeafe', color: '#1e40af' }
+                : { bgcolor: '#fef3c7', color: '#92400e' }),
+            }} />
+          </Stack>
+
+          {/* Reason */}
+          {finding.reason && (
+            <Box sx={{ mb: 1, p: 1, bgcolor: 'rgba(255,255,255,0.6)', borderRadius: 1.5, border: '1px solid rgba(0,0,0,0.06)' }}>
+              <Typography sx={{ fontSize: 10, fontWeight: 700, color: groupColor, textTransform: 'uppercase', letterSpacing: '0.3px', mb: 0.3 }}>Reason</Typography>
+              <Typography sx={{ fontSize: 11, color: '#334155', lineHeight: 1.7 }}>
+                {finding.reason.replace(/:/g, ' — ').replace(/_/g, ' ')}
+              </Typography>
+            </Box>
+          )}
+
+          {/* Evidence sources */}
+          {finding.evidence.length > 0 && (
+            <Box sx={{ mb: 1 }}>
+              <Typography sx={{ fontSize: 10, fontWeight: 700, color: groupColor, textTransform: 'uppercase', letterSpacing: '0.3px', mb: 0.5 }}>Evidence</Typography>
+              {finding.evidence.map((e, i) => (
+                <Stack key={i} direction="row" spacing={0.8} alignItems="flex-start" sx={{ mb: 0.3 }}>
+                  <Gavel sx={{ fontSize: 11, color: P, mt: 0.3, flexShrink: 0 }} />
+                  <Typography sx={{ fontSize: 11, color: '#334155' }}>{e.source_locator}</Typography>
+                </Stack>
+              ))}
+            </Box>
+          )}
+
+          {/* Assumptions */}
+          {finding.assumptions.length > 0 && (
+            <Box sx={{ p: 1, bgcolor: 'rgba(255,255,255,0.6)', borderRadius: 1.5, border: '1px solid rgba(217,119,6,0.2)' }}>
+              <Typography sx={{ fontSize: 10, fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.3px', mb: 0.3 }}>Assumptions</Typography>
+              {finding.assumptions.map((a, i) => (
+                <Typography key={i} sx={{ fontSize: 11, color: '#78350f', lineHeight: 1.6 }}>• {a}</Typography>
+              ))}
+            </Box>
+          )}
+        </Box>
+      </Collapse>
     </Box>
   )
 }

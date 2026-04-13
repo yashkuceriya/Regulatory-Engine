@@ -331,19 +331,78 @@ _ZONE_INFO: dict[str, dict] = {
     "A2": {"category": "Agriculture", "lamc": "12.06", "residential_allowed": True,
             "note": "Light agriculture zone. Single-family homes permitted. ADU may be feasible."},
     "R3": {"category": "Multiple Dwelling", "lamc": "12.10", "residential_allowed": True,
-            "note": "Multiple dwelling zone. Apartments and condos permitted. Density controlled by lot area."},
+            "note": "Multiple dwelling zone. Apartments and condos permitted. Density controlled by lot area.",
+            "permitted_uses": [
+                "Apartments (3+ units)",
+                "Condominiums",
+                "Duplexes / Triplexes",
+                "Single-family dwellings",
+                "ADU (under state law)",
+                "Home occupations",
+                "Parks and playgrounds",
+                "Schools (conditional)",
+                "Churches (conditional)",
+            ],
+            "density_rule": "1 unit per 800 sqft of lot area",
+            "far": "3:1 (Height District 1)",
+            "lamc_url": "https://codelibrary.amlegal.com/codes/los_angeles/latest/lamc/0-0-0-112541",
+            "resources": [
+                {"label": "LAMC §12.10 — R3 Zone Full Text", "url": "https://codelibrary.amlegal.com/codes/los_angeles/latest/lamc/0-0-0-112541"},
+                {"label": "ZIMAS — Verify Zoning (Manual)", "url": "https://zimas.lacity.org"},
+                {"label": "CP-7150 Zoning Code Summary (PDF)", "url": "https://planning.lacity.gov/odocument/eadcb225-a16b-4ce6-bc94-c915408c2b04/Zoning_Code_Summary_Table.pdf"},
+                {"label": "LA City Planning — Zone Information", "url": "https://planning.lacity.gov/resources/zoning-code"},
+            ]},
     "R4": {"category": "Multiple Dwelling", "lamc": "12.11", "residential_allowed": True,
-            "note": "Multiple dwelling zone. Higher density than R3. Apartments, hotels."},
+            "note": "Multiple dwelling zone. Higher density than R3. Apartments, hotels, boarding houses.",
+            "permitted_uses": [
+                "Apartments (3+ units)",
+                "Condominiums",
+                "Hotels and apartment hotels",
+                "Boarding and rooming houses",
+                "Single-family and two-family dwellings",
+                "ADU (under state law)",
+                "Churches, schools (conditional)",
+            ],
+            "density_rule": "1 unit per 400 sqft of lot area",
+            "far": "3:1 (Height District 1)",
+            "lamc_url": "https://codelibrary.amlegal.com/codes/los_angeles/latest/lamc/0-0-0-113189",
+            "resources": [
+                {"label": "LAMC §12.11 — R4 Zone Full Text", "url": "https://codelibrary.amlegal.com/codes/los_angeles/latest/lamc/0-0-0-113189"},
+                {"label": "ZIMAS — Verify Zoning (Manual)", "url": "https://zimas.lacity.org"},
+            ]},
     "R5": {"category": "Multiple Dwelling", "lamc": "12.12", "residential_allowed": True,
-            "note": "Highest residential density. Unlimited density (limited by FAR and height district)."},
+            "note": "Highest residential density. Unlimited density (limited by FAR and height district).",
+            "permitted_uses": [
+                "Apartments (unlimited density)",
+                "Condominiums",
+                "Hotels and apartment hotels",
+                "Any R4-permitted use",
+                "ADU (under state law)",
+            ],
+            "density_rule": "No unit-per-lot-area limit (FAR-controlled)",
+            "far": "6:1 (Height District 2), 3:1 (HD 1)",
+            "lamc_url": "https://codelibrary.amlegal.com/codes/los_angeles/latest/lamc/0-0-0-113575",
+            "resources": [
+                {"label": "LAMC §12.12 — R5 Zone Full Text", "url": "https://codelibrary.amlegal.com/codes/los_angeles/latest/lamc/0-0-0-113575"},
+            ]},
     "RD": {"category": "Restricted Density Multiple Dwelling", "lamc": "12.09.5", "residential_allowed": True,
-            "note": "Restricted density multi-family. Duplexes and small apartments."},
+            "note": "Restricted density multi-family. Duplexes and small apartments.",
+            "permitted_uses": [
+                "Duplexes",
+                "Small apartment buildings",
+                "Single-family dwellings",
+                "ADU (under state law)",
+            ],
+            "density_rule": "Varies by RD suffix (RD1.5 = 1 unit per 1,500 sqft, RD6 = 1 per 6,000 sqft)"},
     "RS": {"category": "Suburban", "lamc": "12.07.01", "residential_allowed": True,
-            "note": "Suburban residential zone. Single-family homes with larger lot minimums."},
+            "note": "Suburban residential zone. Single-family homes with larger lot minimums.",
+            "permitted_uses": ["Single-family dwellings", "ADU (under state law)", "Home occupations"]},
     "RE": {"category": "Residential Estate", "lamc": "12.07.01", "residential_allowed": True,
-            "note": "Residential estate zone. Very large lot single-family. ADU feasible under state law."},
+            "note": "Residential estate zone. Very large lot single-family. ADU feasible under state law.",
+            "permitted_uses": ["Single-family dwellings", "ADU (under state law)", "Home occupations", "Agricultural uses"]},
     "RA": {"category": "Suburban/Agricultural", "lamc": "12.07", "residential_allowed": True,
-            "note": "Suburban agricultural zone. Single-family homes and some agriculture. ADU feasible."},
+            "note": "Suburban agricultural zone. Single-family homes and some agriculture. ADU feasible.",
+            "permitted_uses": ["Single-family dwellings", "ADU (under state law)", "Agricultural uses", "Animal keeping"]},
 }
 
 
@@ -486,6 +545,53 @@ def _out_of_scope_findings(
             assumptions=["Outside R1/R2 engine scope — verify with architect"],
         ))
 
+        # Permitted building types (if available)
+        permitted = info.get("permitted_uses")
+        if permitted:
+            density_rule = info.get("density_rule", "See LAMC for density limits")
+            far_info = info.get("far", "Not modeled — refer to LAMC")
+            findings.append(RegulatoryFinding(
+                finding_type="permitted_building_types",
+                value={
+                    "uses": permitted,
+                    "density_rule": density_rule,
+                    "far": far_info,
+                    "zone": base,
+                    "category": info["category"],
+                },
+                method=FindingMethod.LOOKUP,
+                confidence=0.85,
+                reason=(
+                    f"{info['category']} zone ({base}) permits: {', '.join(permitted[:4])}. "
+                    f"Density: {density_rule}. FAR: {far_info}."
+                ),
+                evidence=[
+                    Evidence(
+                        source_type="lamc_section",
+                        source_locator=f"LAMC §{info['lamc']} — Permitted Uses in {info['category']} Zone",
+                    ),
+                ],
+            ))
+
+        # Resources / external links for zone research
+        resources = info.get("resources")
+        if resources:
+            findings.append(RegulatoryFinding(
+                finding_type="zone_resources",
+                value={
+                    "links": resources,
+                    "lamc_section": info["lamc"],
+                    "lamc_url": info.get("lamc_url", ""),
+                },
+                method=FindingMethod.LOOKUP,
+                confidence=1.0,
+                reason=f"Reference links for {base} ({info['category']}) zone research",
+                evidence=[Evidence(
+                    source_type="lamc_section",
+                    source_locator=f"LAMC §{info['lamc']}",
+                )],
+            ))
+
         # Development potential guidance
         if info["residential_allowed"]:
             findings.append(RegulatoryFinding(
@@ -521,6 +627,61 @@ def _out_of_scope_findings(
                     source_locator=f"LAMC §{info['lamc']}",
                 )],
             ))
+
+        # Confidence breakdown — explain why overall score is low
+        not_evaluated_types = [
+            f.finding_type for f in findings
+            if f.method == FindingMethod.NOT_EVALUATED
+        ]
+        low_conf_types = [
+            f.finding_type for f in findings
+            if f.confidence < 0.60 and f.method != FindingMethod.NOT_EVALUATED
+        ]
+        evaluated_types = [
+            f.finding_type for f in findings
+            if f.method != FindingMethod.NOT_EVALUATED and f.confidence >= 0.60
+        ]
+
+        breakdown_items = []
+        if not_evaluated_types:
+            breakdown_items.append(
+                f"Not evaluated ({len(not_evaluated_types)}): {', '.join(t.replace('_', ' ') for t in not_evaluated_types)}. "
+                f"These use approximate defaults, not zone-specific rules from LAMC §{info['lamc']}."
+            )
+        if low_conf_types:
+            breakdown_items.append(
+                f"Low confidence ({len(low_conf_types)}): {', '.join(t.replace('_', ' ') for t in low_conf_types)}."
+            )
+        if evaluated_types:
+            breakdown_items.append(
+                f"Verified ({len(evaluated_types)}): {', '.join(t.replace('_', ' ') for t in evaluated_types)}."
+            )
+
+        findings.append(RegulatoryFinding(
+            finding_type="confidence_breakdown",
+            value={
+                "not_evaluated": not_evaluated_types,
+                "low_confidence": low_conf_types,
+                "verified": evaluated_types,
+                "reason_summary": (
+                    f"Overall confidence is low because {base} is outside the R1/R2 deterministic "
+                    f"rule engine. Setbacks, height, and development potential use approximate "
+                    f"defaults rather than zone-specific LAMC §{info['lamc']} calculations. "
+                    f"Zone classification and lot area are verified from GIS data."
+                ),
+            },
+            method=FindingMethod.CALCULATION,
+            confidence=1.0,
+            reason=(
+                f"Confidence breakdown: {len(evaluated_types)} verified, "
+                f"{len(not_evaluated_types)} not evaluated, {len(low_conf_types)} low confidence. "
+                f"{base} zone rules are not yet fully modeled in the deterministic engine."
+            ),
+            evidence=[Evidence(
+                source_type="lamc_section",
+                source_locator=f"LAMC §{info['lamc']} — {info['category']} Zone (not yet fully modeled)",
+            )],
+        ))
     else:
         # Unknown zone — still provide default setbacks/height for visualization
         findings.append(RegulatoryFinding(

@@ -1,5 +1,5 @@
 """
-Cover Regulatory Engine — FastAPI application.
+Regulatory Engine — FastAPI application.
 Main entry point for the backend API.
 """
 from __future__ import annotations
@@ -46,14 +46,14 @@ if _lamc_path.exists():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
-    logger.info("Cover Regulatory Engine starting up")
+    logger.info("Regulatory Engine starting up")
     yield
     logger.info("Shutting down — closing HTTP client")
     await close_client()
 
 
 app = FastAPI(
-    title="Cover Regulatory Engine",
+    title="Regulatory Engine",
     description=(
         "For a given residential parcel in LA City, "
         "what can I confidently build — and why?"

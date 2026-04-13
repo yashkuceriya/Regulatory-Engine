@@ -2,15 +2,16 @@ import { useState, useEffect } from 'react'
 import { Box, Typography, Stack } from '@mui/material'
 import {
   Summarize, Map as MapIcon, Shield, Architecture, Cottage,
-  Gavel, Timeline,
+  Gavel, Timeline, Info,
 } from '@mui/icons-material'
 
 const SECTIONS = [
   { id: 'section-overview', label: 'Overview', icon: <Summarize sx={{ fontSize: 16 }} /> },
   { id: 'section-map', label: 'Map', icon: <MapIcon sx={{ fontSize: 16 }} /> },
   { id: 'section-overlays', label: 'Overlays', icon: <Shield sx={{ fontSize: 16 }} /> },
+  { id: 'section-zone-intel', label: 'Zone Intel', icon: <Info sx={{ fontSize: 16 }} /> },
   { id: 'section-envelope', label: 'Envelope', icon: <Architecture sx={{ fontSize: 16 }} /> },
-  { id: 'section-coverfit', label: 'Cover Fit', icon: <Cottage sx={{ fontSize: 16 }} /> },
+  { id: 'section-coverfit', label: 'Fit Analysis', icon: <Cottage sx={{ fontSize: 16 }} /> },
   { id: 'section-findings', label: 'Findings', icon: <Gavel sx={{ fontSize: 16 }} /> },
   { id: 'section-pipeline', label: 'Pipeline', icon: <Timeline sx={{ fontSize: 16 }} /> },
 ]

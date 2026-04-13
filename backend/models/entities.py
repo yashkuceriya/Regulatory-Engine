@@ -1,6 +1,6 @@
 """
-Core data entities for Cover Regulatory Engine.
-Names match Cover's PRD exactly: ParcelObservation, ZoningObservation, etc.
+Core data entities for Regulatory Engine.
+Names match The platform's PRD exactly: ParcelObservation, ZoningObservation, etc.
 """
 from __future__ import annotations
 

@@ -148,7 +148,7 @@ export default function App() {
               <Home sx={{ color: 'white', fontSize: 16 }} />
             </Box>
             <Typography sx={{ fontWeight: 700, fontSize: 14, color: 'primary.main', letterSpacing: '-0.3px' }}>
-              Cover
+              Regulatory Engine
             </Typography>
             <Chip label="Regulatory Engine" size="small" sx={{ height: 18, fontSize: '0.5rem', fontWeight: 600, bgcolor: '#f0ebe5', color: '#7a6e65', cursor: 'default' }} />
           </Box>
@@ -334,7 +334,10 @@ export default function App() {
       {/* ── Main ── */}
       <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {view === 'dashboard' ? (
-          <DashboardView lastAssessment={assessment} />
+          <DashboardView lastAssessment={assessment} onSelectAssessment={(id) => {
+            const loaded = loadAssessment(id)
+            if (loaded) { setAssessment(loaded); setView('assessments') }
+          }} />
         ) : view === 'zoning-map' ? (
           <ZoningMapView onSelectAddress={(a) => { setSearchValue(a); setView('assessments'); handleSearch(a) }} />
         ) : view === 'compare' ? (
@@ -440,7 +443,7 @@ export default function App() {
         borderTop: '1px solid', borderColor: 'divider', bgcolor: 'background.paper',
       }}>
         <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>
-          Cover Regulatory Engine — Preliminary analysis only, subject to professional verification
+          Regulatory Engine — Preliminary analysis only, subject to professional verification
         </Typography>
         <Stack direction="row" spacing={1.5}>
           <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>LA City</Typography>

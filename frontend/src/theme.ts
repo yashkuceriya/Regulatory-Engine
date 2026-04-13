@@ -1,6 +1,6 @@
 import { createTheme } from '@mui/material/styles'
 
-// Warm architectural palette — inspired by Cover's brand (wood, homes, craft)
+// Warm architectural palette — inspired by The platform's brand (wood, homes, craft)
 
 export const lightTheme = createTheme({
   palette: {

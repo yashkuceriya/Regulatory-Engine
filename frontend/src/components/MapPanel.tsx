@@ -96,7 +96,7 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
       const polygon: [number, number][] = [[cMinLng, cMinLat], [cMaxLng, cMinLat], [cMaxLng, cMaxLat], [cMinLng, cMaxLat], [cMinLng, cMinLat]]
       return {
         polygon, center: [(cMinLng + cMaxLng) / 2, (cMinLat + cMaxLat) / 2] as [number, number],
-        label: `Cover ${bestUnit.model}`,
+        label: `${bestUnit.model}`,
         geojson: { type: 'Feature' as const, geometry: { type: 'Polygon' as const, coordinates: [polygon] }, properties: {} },
       }
     } catch { return null }
@@ -521,7 +521,7 @@ export default function MapPanel({ assessment, showParcel = true, showEnvelope =
         setEditAnalysis({
           areaSqft, coveragePct, envelopeSqft,
           frontage, depth,
-          aduFits: aduFit ? `Cover ${aduFit.model} (${aduFit.sqft} sqft)` : null,
+          aduFits: aduFit ? `${aduFit.model} (${aduFit.sqft} sqft)` : null,
         })
       })
 

@@ -20,7 +20,7 @@ interface Props {
 
 const SUGGESTED_QUESTIONS = [
   "What's the max buildable area on this lot?",
-  "Is this parcel eligible for a Cover ADU?",
+  "Is this parcel eligible for a recommended ADU?",
   "Explain the setback requirements",
   "What overlays affect this property?",
   "How does RFAR limit floor area here?",

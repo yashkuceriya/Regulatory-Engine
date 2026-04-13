@@ -1,16 +1,16 @@
 /**
- * Cover Fit Analysis — the killer feature.
+ * Fit Analysis Analysis — the killer feature.
  *
- * This component translates raw regulatory data into Cover-specific
+ * This component translates raw regulatory data into platform-specific
  * business intelligence:
  *
- * 1. COVER FIT SCORE — How well does this parcel match Cover's ideal project?
- * 2. UNIT RECOMMENDATION — Which Cover model (S1, S2, Custom) fits?
+ * 1. COVER FIT SCORE — How well does this parcel match The platform's ideal project?
+ * 2. UNIT RECOMMENDATION — Which recommended model (S1, S2, Custom) fits?
  * 3. PROJECT COST ESTIMATE — Rough ballpark based on buildable area
  * 4. PERMIT TIMELINE — Estimated weeks based on overlay complexity
  * 5. SITE VISIT CHECKLIST — Auto-generated verification items
  *
- * This shows Cover we understand their BUSINESS, not just zoning code.
+ * This shows we understand their BUSINESS, not just zoning code.
  */
 
 import { memo } from 'react'
@@ -22,7 +22,7 @@ import {
 import GlossaryTerm from './GlossaryTerm'
 import type { BuildabilityAssessment } from '../types/assessment'
 
-// Cover's unit specs (buildcover.com, Contrary Research, Dwell — March 2025 pricing)
+// The platform's unit specs (buildcover.com, Contrary Research, Dwell — March 2025 pricing)
 const COVER_UNITS = [
   {
     model: 'S1',
@@ -76,12 +76,12 @@ export default memo(function CoverFitAnalysis({ assessment, projectType, targetS
   const aduAssessment = assessment.assessments.find(a => a.building_type === 'ADU')
   const sfrAssessment = assessment.assessments.find(a => a.building_type === 'SFR')
 
-  // Compute Cover Fit Score (0-100)
+  // Compute Fit Score (0-100)
   const fitScore = computeFitScore(assessment)
   const fitGrade = fitScore >= 85 ? 'Excellent' : fitScore >= 70 ? 'Good' : fitScore >= 50 ? 'Moderate' : 'Challenging'
   const fitColor = fitScore >= 85 ? '#16a34a' : fitScore >= 70 ? '#0d9488' : fitScore >= 50 ? '#d97706' : '#dc2626'
 
-  // Determine which Cover units fit — use lot area as fallback when no envelope
+  // Determine which units fit — use lot area as fallback when no envelope
   const effectiveBuildable = buildableArea || (lotArea * 0.55) // ~55% buildable heuristic when no envelope
   const fittingUnits = COVER_UNITS.filter(u => effectiveBuildable >= u.minBuildable && lotArea >= u.minLotSqft)
   // When user specifies targetSqft, pick the closest unit that ALSO fits the parcel.
@@ -211,7 +211,7 @@ export default memo(function CoverFitAnalysis({ assessment, projectType, targetS
                 <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.6)', borderRadius: 2, mb: 1.5 }}>
                   <Typography sx={{ fontSize: 14, fontWeight: 800, color: '#d97706' }}>Custom design consultation needed</Typography>
                   <Typography sx={{ fontSize: 10, color: '#7a6e65', mt: 0.3, fontStyle: 'italic' }}>
-                    Buildable area does not support standard Cover units
+                    Buildable area does not support standard ADU units
                   </Typography>
                 </Box>
               )}
@@ -232,7 +232,7 @@ export default memo(function CoverFitAnalysis({ assessment, projectType, targetS
             {/* Right column: Site verification needs */}
             <Box>
               <Typography sx={{ fontSize: 10, fontWeight: 700, color: `${P}60`, textTransform: 'uppercase', letterSpacing: '0.5px', mb: 1 }}>
-                Cover Would Verify on Site
+                We Would Verify on Site
               </Typography>
               <Stack spacing={0.8}>
                 {topChecklist.map((item, i) => (
@@ -292,7 +292,7 @@ export default memo(function CoverFitAnalysis({ assessment, projectType, targetS
                 )}
                 {fittingUnits.length > 1 && (
                   <Typography sx={{ fontSize: 10, color: '#c17855', mt: 1, fontWeight: 600 }}>
-                    {fittingUnits.length} Cover models fit this lot
+                    {fittingUnits.length} recommended models fit this lot
                   </Typography>
                 )}
               </>
@@ -325,13 +325,13 @@ export default memo(function CoverFitAnalysis({ assessment, projectType, targetS
                   <DetailLine label="Timeline" value={bestUnit.timeline} />
                 </Stack>
                 <Typography sx={{ fontSize: 9, color: '#b0a69d', mt: 1.5, fontStyle: 'italic' }}>
-                  Estimates based on public Cover pricing. Actual cost varies.
+                  Estimates based on public pricing. Actual cost varies.
                 </Typography>
               </>
             ) : (
               <Box sx={{ py: 2, textAlign: 'center' }}>
                 <Typography sx={{ fontSize: 14, fontWeight: 700, color: P }}>Custom Quote</Typography>
-                <Typography sx={{ fontSize: 11, color: '#7a6e65' }}>Contact Cover for custom pricing</Typography>
+                <Typography sx={{ fontSize: 11, color: '#7a6e65' }}>Contact us for custom pricing</Typography>
               </Box>
             )}
           </CardContent>
@@ -543,8 +543,8 @@ export default memo(function CoverFitAnalysis({ assessment, projectType, targetS
             Ready to build?
           </Typography>
           <Typography sx={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', mb: 2.5, maxWidth: 400, mx: 'auto', lineHeight: 1.6 }}>
-            This assessment shows your lot {bestUnit ? `supports a Cover ${bestUnit.model}` : 'may support an ADU'}.
-            Get a detailed quote and construction timeline from Cover.
+            This assessment shows your lot {bestUnit ? `supports a recommended ${bestUnit.model}` : 'may support an ADU'}.
+            Get a detailed quote and construction timeline from the platform.
           </Typography>
           <Stack direction="row" spacing={1.5} justifyContent="center">
             <Button

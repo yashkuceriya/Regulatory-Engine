@@ -2,15 +2,15 @@
 
 > **For a given residential parcel in Southern California, what can I confidently build — and why?**
 
-A full-stack buildability assessment engine that takes a street address and returns a structured, evidence-backed regulatory analysis in seconds — including SFR standards, ADU feasibility, buildable envelope geometry, overlay risk screening, and Cover-specific project intelligence.
+A full-stack buildability assessment engine that takes a street address and returns a structured, evidence-backed regulatory analysis in seconds — including SFR standards, ADU feasibility, buildable envelope geometry, overlay risk screening, and platform-specific project intelligence.
 
-Built for [Cover](https://buildcover.com) — the technology company that designs, permits, manufactures, and installs custom backyard homes (ADUs) across Southern California.
+Built for the platform — the technology company that designs, permits, manufactures, and installs custom backyard homes (ADUs) across Southern California.
 
 ---
 
 ## Why This Exists
 
-Cover's first step with every customer: **"Provide your address → we determine if an ADU is legal at the site."**
+The platform's first step with every customer: **"Provide your address → we determine if an ADU is legal at the site."**
 
 Today that's manual — someone checks ZIMAS, cross-references LAMC, reads CP-7150 tables, checks overlay maps. Takes 30-60 minutes per inquiry.
 
@@ -57,8 +57,8 @@ GET /api/jurisdictions → [
 - **Buildable Envelope**: Shapely polygon inset → GeoJSON with sqft calculation
 - **Confidence Scoring**: Per-finding with evidence trail
 
-### Cover Business Intelligence
-- **Cover Fit Score** (0-100): Composite viability across 5 dimensions
+### Business Intelligence
+- **Fit Score** (0-100): Composite viability across 5 dimensions
 - **Unit Recommendation**: S1 Studio / S2 One-Bedroom / Custom based on buildable area
 - **ROI Calculator**: Monthly rental ($3/sqft LA rate), annual income, payback period, property value increase
 - **Permit Timeline**: Weeks estimate based on overlay complexity
@@ -126,7 +126,7 @@ npm run dev  # → http://localhost:5173
 
 1. Click **"5432 Coliseum St"** → assessment runs in ~2s
 2. See: map, lot donut, confidence score, overlay matrix, 3D envelope
-3. Scroll to: **Cover Fit Score (85)**, S2 recommendation, **$2,250/mo rental income**
+3. Scroll to: **Fit Score (85)**, S2 recommendation, **$2,250/mo rental income**
 4. **Export PDF** → printable report
 5. **Compare** → 2 addresses side-by-side
 6. **AI chat** → "Can I build an ADU?" → cited answer
@@ -138,6 +138,6 @@ npm run dev  # → http://localhost:5173
 | File | Contents |
 |------|----------|
 | `PROJECT_LOG.md` | Architecture decisions with reasoning |
-| `COVER_RESEARCH.md` | Cover company analysis |
+| `COVER_RESEARCH.md` | Company analysis |
 | `COMPETITIVE_LANDSCAPE.md` | Market comparison (FutureLot, Deepblocks, Canibuild, Symbium, GreenLite) |
 | `NEXT_STEPS.md` | Strategic roadmap |

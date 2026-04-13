@@ -15,9 +15,12 @@ import { useAssessmentHistory } from '../hooks/useAssessmentHistory'
 
 const P = '#3d2c24'
 
-interface Props { lastAssessment: BuildabilityAssessment | null }
+interface Props {
+  lastAssessment: BuildabilityAssessment | null
+  onSelectAssessment?: (id: string) => void
+}
 
-export default function DashboardView({ lastAssessment }: Props) {
+export default function DashboardView({ lastAssessment, onSelectAssessment }: Props) {
   const { history } = useAssessmentHistory()
   const [jurisdictions, setJurisdictions] = useState<any[]>([])
   const timing = lastAssessment?.pipeline_timing
@@ -190,10 +193,15 @@ export default function DashboardView({ lastAssessment }: Props) {
               {uniqueHistory.length > 0 ? (
                 <Stack spacing={0.8}>
                   {uniqueHistory.slice(0, 6).map((h, i) => (
-                    <Box key={h.id} sx={{
-                      display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: 2,
-                      bgcolor: '#f5f0eb', border: `1px solid ${P}08`,
-                      animation: `slideUp 0.3s ease-out ${i * 0.05}s both`,
+                    <Box key={h.id}
+                      onClick={() => onSelectAssessment?.(h.id)}
+                      sx={{
+                        display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: 2,
+                        bgcolor: '#f5f0eb', border: `1px solid ${P}08`,
+                        animation: `slideUp 0.3s ease-out ${i * 0.05}s both`,
+                        cursor: onSelectAssessment ? 'pointer' : 'default',
+                        transition: 'all 0.15s',
+                        '&:hover': onSelectAssessment ? { bgcolor: '#ede5dc', borderColor: `${P}20`, transform: 'translateX(2px)' } : {},
                     }}>
                       <Box sx={{
                         width: 32, height: 32, borderRadius: '50%', flexShrink: 0,

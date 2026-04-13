@@ -1,5 +1,5 @@
 """
-Configuration and endpoint URLs for Cover Regulatory Engine.
+Configuration and endpoint URLs for Regulatory Engine.
 
 Multi-jurisdiction architecture: each jurisdiction has its own set of
 GIS endpoints. LA City is the first and deepest implementation.

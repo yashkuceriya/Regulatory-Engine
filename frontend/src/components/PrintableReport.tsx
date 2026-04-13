@@ -75,7 +75,7 @@ const PrintableReport = forwardRef<HTMLDivElement, Props>(({ assessment }, ref) 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', pb: 2, mb: 3, borderBottom: `3px solid ${P}` }}>
         <Box>
           <Typography sx={{ fontSize: 9, fontWeight: 800, color: LIGHT, textTransform: 'uppercase', letterSpacing: '2px' }}>
-            Cover Regulatory Engine
+            Regulatory Engine
           </Typography>
           <Typography sx={{ fontSize: 22, fontWeight: 900, color: P, lineHeight: 1.2, mt: 0.5 }}>
             Parcel Decision Memo
@@ -210,7 +210,7 @@ const PrintableReport = forwardRef<HTMLDivElement, Props>(({ assessment }, ref) 
         const aduEligible = allFindings.find(f => f.finding_type === 'adu_eligibility')
         const aduHeight = allFindings.find(f => f.finding_type === 'adu_max_height' && typeof f.value === 'number')
 
-        // Cover unit recommendation
+        // Unit recommendation
         const effectiveB = envArea || (lotArea ? lotArea * 0.55 : 0)
         const coverUnits = [
           { model: 'S1', sqft: 580, minB: 700, minLot: 3500, cost: '$354K–$369K' },
@@ -253,7 +253,7 @@ const PrintableReport = forwardRef<HTMLDivElement, Props>(({ assessment }, ref) 
                 {[
                   { label: 'ADU Eligible', value: aduEligible?.value === true ? 'Yes' : aduEligible?.value === false ? 'No' : '—' },
                   { label: 'ADU Max Height', value: aduHeight ? `${aduHeight.value} ft` : '—' },
-                  { label: 'Recommended Unit', value: bestUnit ? `Cover ${bestUnit.model} (${bestUnit.sqft} sqft)` : '—' },
+                  { label: 'Recommended Unit', value: bestUnit ? `${bestUnit.model} (${bestUnit.sqft} sqft)` : '—' },
                   { label: 'Est. Build Cost', value: bestUnit?.cost || '—' },
                   { label: 'Est. Monthly Rent', value: monthlyRent ? `$${monthlyRent.toLocaleString()}/mo` : '—' },
                   { label: 'Est. Annual Income', value: monthlyRent ? `$${(monthlyRent * 12).toLocaleString()}/yr` : '—' },
@@ -341,7 +341,7 @@ const PrintableReport = forwardRef<HTMLDivElement, Props>(({ assessment }, ref) 
       {/* ── Footer ── */}
       <Box sx={{ pt: 2, borderTop: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography sx={{ fontSize: 8, color: LIGHT }}>
-          Cover Regulatory Engine · LA City Planning, LA County GIS, Census TIGER
+          Regulatory Engine · LA City Planning, LA County GIS, Census TIGER
         </Typography>
         <Typography sx={{ fontSize: 8, color: LIGHT }}>
           Preliminary analysis — not legal or architectural advice
